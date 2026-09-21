@@ -27,6 +27,19 @@ File: `breadboard_box.scad`
   (bottom at Z = 5.0), because the floor spanning the gap sits higher.
   Earlier a single 8.45 mm depth broke through in the three lengthways
   gaps between the feet.
+- Undrilled strips across the short way at X = 0, +/-21, over the joins
+  between the four feet, matching the lengthways strip down the middle.
+  These are exactly where a hole had no foot beneath it, so with them in
+  place every remaining hole is full depth and nothing is shallow.
+  `strip_width` is 4.8 mm, the measured gap between feet at the z = 1 hole
+  bottom level -- not a standard, just the gap. Dropping whole columns
+  rounds the finished strips up to 6.72 mm at the centre and 9.26 mm at the
+  outer joins; they differ because 21 mm is not a multiple of 2.54 mm.
+- `strip_margin` (0.4 mm, one nozzle) keeps a hole from landing on the edge
+  of a foot, where the depth clip would slice it into an unprintable sliver.
+  Verified: all 220 holes come out exactly 0.9 x 0.9 mm.
+- The hole grid is centred on the part, not the cavity. The cavity is
+  0.05 mm off centre in X, which made the strips asymmetric.
 - Breadboard middle: left as solid deck, not cut as a groove. Rows sit at
   +/-(1.5 + n) * 2.54 so the two innermost rows are 7.62 mm apart (the
   0.3 inch DIP pin spacing) with an undrilled strip between them, like the

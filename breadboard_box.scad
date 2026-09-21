@@ -40,6 +40,15 @@ hole_pitch = 2.54;
 base_clearance = 1;
 // Margin from the cavity wall to the outermost hole.
 hole_margin = 0.5;
+// Width of the undrilled strips over the joins between the feet. The gap
+// between feet is widest at the bottom and closes as it rises: 4.8 mm at
+// the z = 1 hole-bottom level, 1.9 mm by z = 4, shut at z = 4.75. A hole
+// bottoms out at z = 1, so covering 4.8 mm is enough for every remaining
+// hole to land on solid foot. Not a standard, just the measured gap.
+strip_width = 4.8;
+// Foot left around a hole next to a strip, so the clip never slices a hole
+// into a sliver. One nozzle width.
+strip_margin = 0.4;
 
 /* [Model detail] */
 fa = 6;
@@ -67,9 +76,11 @@ cavity_y = [-17.0, 17.0];
 inner_x = cavity_x[1] - cavity_x[0];
 inner_y = cavity_y[1] - cavity_y[0];
 
-// The grid is centred on the cavity, which is a touch off the part centre.
-mid_x = (cavity_x[0] + cavity_x[1]) / 2;
-mid_y = (cavity_y[0] + cavity_y[1]) / 2;
+// The hole grid is centred on the part, not on the cavity, so that it stays
+// symmetric about the feet and the strips over the joins between them. The
+// cavity is 0.05 mm off centre in X, which is not worth chasing.
+mid_x = 0;
+mid_y = 0;
 
 // Rows sit at +/-(1.5 + n) * pitch, so the two innermost rows are 7.62 mm
 // apart: the 0.3 inch spacing of a DIP package, straddling the centre gap.
@@ -77,8 +88,26 @@ row_offset = 1.5;
 rows = floor((inner_y / 2 - hole_margin - hole_size / 2) / hole_pitch - row_offset) + 1;
 cols = floor((inner_x / 2 - hole_margin - hole_size / 2) / hole_pitch - 0.5) + 1;
 
-// Hole centres, mirrored either side of the middle in both axes.
-hole_xs = [for (sx = [-1, 1]) for (i = [0 : cols - 1]) mid_x + sx * (0.5 + i) * hole_pitch];
+// Undrilled strips across the short way, over the joins between the four
+// feet. Same idea as the solid strip down the middle: the deck stays solid
+// where the feet meet, which is also where a hole would otherwise have to
+// be shallow because there is no foot beneath it.
+// Measured from the part centre, where the feet actually are, not from the
+// cavity centre the hole grid uses.
+strip_xs = [-21, 0, 21];
+
+
+// Hole centres, mirrored either side of the middle in both axes. A column
+// is dropped unless its holes clear the strip entirely, with strip_margin
+// of foot left around them. Without that margin a hole landing on the edge
+// of a foot gets sliced by the clip into an unprintable sliver.
+function clear_of_strips(x) =
+  len([for (s = strip_xs)
+        if (abs(x - s) < strip_width / 2 + hole_size / 2 + strip_margin) 1]) == 0;
+
+hole_xs = [for (sx = [-1, 1]) for (i = [0 : cols - 1])
+             let (x = mid_x + sx * (0.5 + i) * hole_pitch)
+             if (clear_of_strips(x)) x];
 hole_ys = [for (sy = [-1, 1]) for (j = [0 : rows - 1]) mid_y + sy * (row_offset + j) * hole_pitch];
 
 // Full-depth hole columns, before they are clipped to the floor below.
