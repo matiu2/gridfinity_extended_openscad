@@ -20,9 +20,13 @@ File: `breadboard_box.scad`
   Y = 0 (5.62 mm).
 
 ## Decisions
-- Hole depth: 8.45 mm (Z 10.45 down to 2.00), keeping the requested 2 mm of
-  solid base. The nominal 10 mm would have left only 0.45 mm, too thin to
-  print without breaking through.
+- Hole depth: not one depth. Each hole stops 1 mm (5 layers at 0.2 mm)
+  above whatever solid is under it, done by intersecting the hole columns
+  with a copy of the cup raised by that 1 mm. Over a foot a hole is 9.45 mm
+  deep (bottom at Z = 1.0); over a gap between feet it is 5.45 mm
+  (bottom at Z = 5.0), because the floor spanning the gap sits higher.
+  Earlier a single 8.45 mm depth broke through in the three lengthways
+  gaps between the feet.
 - Breadboard middle: left as solid deck, not cut as a groove. Rows sit at
   +/-(1.5 + n) * 2.54 so the two innermost rows are 7.62 mm apart (the
   0.3 inch DIP pin spacing) with an undrilled strip between them, like the
@@ -41,7 +45,8 @@ File: `breadboard_box.scad`
 - [x] Slab trimmed by intersecting a solid (`filled_in`) cup, so it meets
       the tapered wall with no gap and no bulge
 - [x] 0.9 mm square holes on a 2.54 mm pitch, 28 columns x 10 rows
-- [x] Holes 8.45 mm deep, bottoms verified at Z = 2.00
+- [x] Holes clipped per position: bottoms verified at Z = 1.0 over feet and
+      Z = 5.0 over the gaps, nothing breaking through the underside
 - [x] Centre strip left solid, verified as no gap in the deck plane
 - [x] Renders manifold, dimensions and pitch verified from the STL
 
@@ -51,6 +56,12 @@ File: `breadboard_box.scad`
 - The preview renderer drops sub-pixel features: early top views appeared to
   show only 6 columns when all 28 were present. Verify counts from the STL,
   not from the image.
+
+## Print settings assumed
+- 0.4 mm nozzle, 0.2 mm layers. Clearances are chosen as whole layer
+  multiples (1 mm = 5 layers). The 0.9 mm holes are narrower than the
+  nozzle, so expect them to print round and a little tight, which suits
+  gripping legs; raise `hole_size` to 1.0-1.1 if they close up.
 
 ## Possible follow-ups (not requested)
 - Chamfer the hole mouths slightly so legs self-centre when pushed in.

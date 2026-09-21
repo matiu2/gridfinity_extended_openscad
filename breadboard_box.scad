@@ -34,8 +34,10 @@ floor_rise = 5;
 hole_size = 0.9;
 // Centre to centre spacing, 0.1 inch.
 hole_pitch = 2.54;
-// Keep this much solid material between the hole bottoms and the table.
-base_clearance = 2;
+// Keep this much solid material under every hole. Over a foot that means
+// clearance above the table; over a gap between feet it means thickness
+// above open air. 1 mm is 5 layers at 0.2 mm.
+base_clearance = 1;
 // Margin from the cavity wall to the outermost hole.
 hole_margin = 0.5;
 
@@ -79,11 +81,24 @@ cols = floor((inner_x / 2 - hole_margin - hole_size / 2) / hole_pitch - 0.5) + 1
 hole_xs = [for (sx = [-1, 1]) for (i = [0 : cols - 1]) mid_x + sx * (0.5 + i) * hole_pitch];
 hole_ys = [for (sy = [-1, 1]) for (j = [0 : rows - 1]) mid_y + sy * (row_offset + j) * hole_pitch];
 
-module breadboard_holes() {
+// Full-depth hole columns, before they are clipped to the floor below.
+module hole_columns() {
   for (x = hole_xs)
     for (y = hole_ys)
-      translate([x - hole_size / 2, y - hole_size / 2, base_clearance])
-        cube([hole_size, hole_size, hole_depth + 0.01]);
+      translate([x - hole_size / 2, y - hole_size / 2, -1])
+        cube([hole_size, hole_size, deck_z + 2]);
+}
+
+// The holes, each stopping base_clearance above whatever solid lies under
+// it. Clipping the columns against a copy of the cup raised by
+// base_clearance does this for every hole at once: over a foot the limit is
+// the table, and over a gap between feet it is the underside of the floor
+// spanning that gap, which is higher. No need to know where the feet are.
+module breadboard_holes() {
+  intersection() {
+    hole_columns();
+    translate([0, 0, base_clearance]) solid_cup();
+  }
 }
 
 // The same cup rendered solid. Intersecting against this trims a shape to
