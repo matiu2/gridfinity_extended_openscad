@@ -5,15 +5,16 @@
 //   - height 3 units of 7 mm = 21 mm
 //   - no label holder, no magnet or screw holes in the feet
 //   - inner floor raised, then drilled on a 2.54 mm breadboard grid with a
-//     DIP-width channel down the middle
+//     solid undrilled strip down the middle
 //
 // Geometry notes, measured from the rendered model:
 //   The foot stack is 0.8 + 1.8 + 2.15 = 4.75 mm and the cup floor is
-//   0.7 mm, so the stock inner floor sits at Z = 5.45 mm. With subPitch = 2
-//   the feet form a 4 x 2 grid of 21 mm pads, leaving a clear channel along
-//   Y = 0 (about 5.6 mm wide) that runs the full length between the two
-//   rows of feet. That channel is where the breadboard gap goes: it is the
-//   one place the cut can run deep without meeting a foot.
+//   0.7 mm, so the stock inner floor sits at Z = 5.45 mm.
+//
+//   The middle strip is left solid, like the centre divider of a
+//   breadboard. The two hole rows either side of it are 7.62 mm apart, the
+//   0.3 inch DIP pin spacing, so a chip straddles the strip with each row
+//   of pins in its own holes.
 
 include <modules/gridfinity_constants.scad>
 use <modules/module_gridfinity_cup.scad>
@@ -37,10 +38,6 @@ hole_pitch = 2.54;
 base_clearance = 2;
 // Margin from the cavity wall to the outermost hole.
 hole_margin = 0.5;
-// Width of the breadboard centre groove. The two hole rows either side are
-// 7.62 mm apart (the 0.3 inch DIP pin spacing); this is the open gap
-// between them, and must stay inside the ~5.6 mm channel between the feet.
-channel_width = 5;
 
 /* [Model detail] */
 fa = 6;
@@ -87,15 +84,6 @@ module breadboard_holes() {
     for (y = hole_ys)
       translate([x - hole_size / 2, y - hole_size / 2, base_clearance])
         cube([hole_size, hole_size, hole_depth + 0.01]);
-}
-
-// The breadboard centre groove, in the Y = 0 gap between the two rows of
-// feet. Kept a little narrower than the 5.6 mm inter-foot channel so the
-// cut never breaks into a foot, and stopped at the same base clearance as
-// the holes.
-module centre_channel() {
-  translate([cavity_x[0], mid_y - channel_width / 2, base_clearance])
-    cube([inner_x, channel_width, deck_z - base_clearance + 0.01]);
 }
 
 // The same cup rendered solid. Intersecting against this trims a shape to
@@ -147,5 +135,4 @@ difference() {
     raised_floor();
   }
   breadboard_holes();
-  centre_channel();
 }

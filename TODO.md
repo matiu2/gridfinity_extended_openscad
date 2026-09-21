@@ -23,11 +23,11 @@ File: `breadboard_box.scad`
 - Hole depth: 8.45 mm (Z 10.45 down to 2.00), keeping the requested 2 mm of
   solid base. The nominal 10 mm would have left only 0.45 mm, too thin to
   print without breaking through.
-- Breadboard gap: the Y = 0 channel between the two rows of feet, the one
-  place a deep cut meets no foot. Rows sit at +/-(1.5 + n) * 2.54 so the two
-  innermost rows are 7.62 mm apart (the 0.3 inch DIP pin spacing); the
-  groove itself is 5 mm, inside the 5.6 mm inter-foot channel, and close to
-  the ~6 mm measured on a real breadboard.
+- Breadboard middle: left as solid deck, not cut as a groove. Rows sit at
+  +/-(1.5 + n) * 2.54 so the two innermost rows are 7.62 mm apart (the
+  0.3 inch DIP pin spacing) with an undrilled strip between them, like the
+  centre divider of a breadboard. An earlier version cut a 5 mm trench there;
+  removed on request.
 
 ## Stage 1 — plain box  [DONE]
 - [x] `breadboard_box.scad` wrapping `gridfinity_cup`
@@ -42,7 +42,7 @@ File: `breadboard_box.scad`
       the tapered wall with no gap and no bulge
 - [x] 0.9 mm square holes on a 2.54 mm pitch, 28 columns x 10 rows
 - [x] Holes 8.45 mm deep, bottoms verified at Z = 2.00
-- [x] Centre channel cut along Y = 0, verified as a 5 mm gap in the deck
+- [x] Centre strip left solid, verified as no gap in the deck plane
 - [x] Renders manifold, dimensions and pitch verified from the STL
 
 ## Notes for next time
