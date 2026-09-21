@@ -40,15 +40,14 @@ hole_pitch = 2.54;
 base_clearance = 1;
 // Margin from the cavity wall to the outermost hole.
 hole_margin = 0.5;
-// Width of the undrilled strips over the joins between the feet. The gap
-// between feet is widest at the bottom and closes as it rises: 4.8 mm at
-// the z = 1 hole-bottom level, 1.9 mm by z = 4, shut at z = 4.75. A hole
-// bottoms out at z = 1, so covering 4.8 mm is enough for every remaining
-// hole to land on solid foot. Not a standard, just the measured gap.
-strip_width = 4.8;
-// Foot left around a hole next to a strip, so the clip never slices a hole
-// into a sliver. One nozzle width.
-strip_margin = 0.4;
+// Solid strip down the middle, hole edge to hole edge. Measured off a real
+// breadboard at 6 mm, which is what components are built to sit in.
+centre_gap = 6;
+// Width of the chamfered mouth at the top of each hole, which guides a leg
+// in. 1.5 leaves 1.04 mm of deck between neighbouring mouths, and at 45
+// degrees makes the lead-in 0.3 mm deep.
+mouth_size = 1.5;
+lead_in = (mouth_size - hole_size) / 2;
 
 /* [Model detail] */
 fa = 6;
@@ -82,52 +81,66 @@ inner_y = cavity_y[1] - cavity_y[0];
 mid_x = 0;
 mid_y = 0;
 
-// Rows sit at +/-(1.5 + n) * pitch, so the two innermost rows are 7.62 mm
-// apart: the 0.3 inch spacing of a DIP package, straddling the centre gap.
-row_offset = 1.5;
-rows = floor((inner_y / 2 - hole_margin - hole_size / 2) / hole_pitch - row_offset) + 1;
+// The innermost rows sit either side of the centre gap, then the rest march
+// outward on pitch. The gap is set by measurement off a real breadboard
+// rather than by the grid, so the two innermost rows are centre_gap +
+// hole_size apart, which is 6.9 mm: a little under the 7.62 mm of the 0.3
+// inch DIP standard, but it is what components actually sit in.
+// Distance from the middle to the first row of holes, in mm.
+row_offset = (centre_gap + hole_size) / 2;
+rows = floor((inner_y / 2 - hole_margin - hole_size / 2 - row_offset) / hole_pitch) + 1;
 cols = floor((inner_x / 2 - hole_margin - hole_size / 2) / hole_pitch - 0.5) + 1;
 
-// Undrilled strips across the short way, over the joins between the four
-// feet. Same idea as the solid strip down the middle: the deck stays solid
-// where the feet meet, which is also where a hole would otherwise have to
-// be shallow because there is no foot beneath it.
-// Measured from the part centre, where the feet actually are, not from the
-// cavity centre the hole grid uses.
-strip_xs = [-21, 0, 21];
+// Hole centres, mirrored either side of the middle in both axes. The grid
+// runs right across the joins between the feet; holes over a join simply
+// come out shallower, which the depth clip handles.
+hole_xs = [for (sx = [-1, 1]) for (i = [0 : cols - 1]) mid_x + sx * (0.5 + i) * hole_pitch];
+hole_ys = [for (sy = [-1, 1]) for (j = [0 : rows - 1]) mid_y + sy * (row_offset + j * hole_pitch)];
 
+// Where the feet are, so a hole can tell whether it has one underneath.
+// The feet are a grid of pads pitch/sub_pitch across, centred on the part;
+// between them is a gap that is widest at the bottom and closes as it
+// rises. A hole sitting wholly over a pad can go deep; one that overlaps a
+// gap at all must stop above it, or the clip would slice it into a sliver.
+pad_pitch = gf_pitch / 2;
+// The gap measures 4.8 mm at the z = 1 hole bottom, plus a margin so a hole
+// that lands right on the edge of a pad is treated as unsupported rather
+// than breaking through the corner of the foot.
+foot_gap = 4.8 + 0.8;
 
-// Hole centres, mirrored either side of the middle in both axes. A column
-// is dropped unless its holes clear the strip entirely, with strip_margin
-// of foot left around them. Without that margin a hole landing on the edge
-// of a foot gets sliced by the clip into an unprintable sliver.
-function clear_of_strips(x) =
-  len([for (s = strip_xs)
-        if (abs(x - s) < strip_width / 2 + hole_size / 2 + strip_margin) 1]) == 0;
+// True when the hole at c is clear of every gap between pads on that axis.
+function over_pad(c, n) =
+  let (nearest = round(c / pad_pitch) * pad_pitch)
+  abs(c - nearest) > (foot_gap + hole_size) / 2 || abs(nearest) > n * pad_pitch;
 
-hole_xs = [for (sx = [-1, 1]) for (i = [0 : cols - 1])
-             let (x = mid_x + sx * (0.5 + i) * hole_pitch)
-             if (clear_of_strips(x)) x];
-hole_ys = [for (sy = [-1, 1]) for (j = [0 : rows - 1]) mid_y + sy * (row_offset + j) * hole_pitch];
+// Bottom of the hole at (x, y): down to the table clearance when there is
+// foot under it, otherwise stopping base_clearance above the top of the
+// foot stack, which is where the gap between the feet has closed.
+function hole_bottom(x, y) =
+  over_pad(x, 2) && over_pad(y, 1) ? base_clearance : foot_height + base_clearance;
 
-// Full-depth hole columns, before they are clipped to the floor below.
-module hole_columns() {
-  for (x = hole_xs)
-    for (y = hole_ys)
-      translate([x - hole_size / 2, y - hole_size / 2, -1])
-        cube([hole_size, hole_size, deck_z + 2]);
+// One hole: a square shaft with a chamfered mouth that guides a leg in.
+// A chamfer rather than a rounded fillet because the sloped wall prints
+// without overhang, where a true radius would need support at the lip.
+module hole_at(x, y) {
+  bottom = hole_bottom(x, y);
+  translate([x, y, 0]) {
+    translate([-hole_size / 2, -hole_size / 2, bottom])
+      cube([hole_size, hole_size, deck_z - bottom + 0.01]);
+    // The flare, widest at the deck and closing to the hole below it.
+    translate([0, 0, deck_z - lead_in])
+      linear_extrude(height = lead_in + 0.01, scale = mouth_size / hole_size)
+        square(hole_size, center = true);
+  }
 }
 
-// The holes, each stopping base_clearance above whatever solid lies under
-// it. Clipping the columns against a copy of the cup raised by
-// base_clearance does this for every hole at once: over a foot the limit is
-// the table, and over a gap between feet it is the underside of the floor
-// spanning that gap, which is higher. No need to know where the feet are.
+// Every hole is given a flat bottom at one of two levels, rather than being
+// clipped against the cup. Clipping sliced any hole straddling the edge of
+// a foot into a fragment too thin to print.
 module breadboard_holes() {
-  intersection() {
-    hole_columns();
-    translate([0, 0, base_clearance]) solid_cup();
-  }
+  for (x = hole_xs)
+    for (y = hole_ys)
+      hole_at(x, y);
 }
 
 // The same cup rendered solid. Intersecting against this trims a shape to
