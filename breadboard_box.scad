@@ -48,6 +48,9 @@ centre_gap = 6;
 // degrees makes the lead-in 0.3 mm deep.
 mouth_size = 1.5;
 lead_in = (mouth_size - hole_size) / 2;
+// Printer layer height. The chamfer is built as slices this thick, which is
+// how it comes out of the slicer regardless.
+layer_height = 0.2;
 
 /* [Model detail] */
 fa = 6;
@@ -119,28 +122,48 @@ function over_pad(c, n) =
 function hole_bottom(x, y) =
   over_pad(x, 2) && over_pad(y, 1) ? base_clearance : foot_height + base_clearance;
 
-// One hole: a square shaft with a chamfered mouth that guides a leg in.
-// A chamfer rather than a rounded fillet because the sloped wall prints
-// without overhang, where a true radius would need support at the lip.
-module hole_at(x, y) {
-  bottom = hole_bottom(x, y);
-  translate([x, y, 0]) {
-    translate([-hole_size / 2, -hole_size / 2, bottom])
-      cube([hole_size, hole_size, deck_z - bottom + 0.01]);
-    // The flare, widest at the deck and closing to the hole below it.
-    translate([0, 0, deck_z - lead_in])
-      linear_extrude(height = lead_in + 0.01, scale = mouth_size / hole_size)
-        square(hole_size, center = true);
-  }
+// Every hole position, split by which of the two bottom levels it takes.
+// Grouping them this way lets the whole set be cut with three extrusions
+// rather than one pair of solids per hole. Six hundred primitives overflows
+// the preview renderer, which then shows nothing at all ("CSG normalization
+// resulted in an empty tree"); the final F6 render was always correct.
+deep_holes = [for (x = hole_xs) for (y = hole_ys)
+                if (hole_bottom(x, y) == base_clearance) [x, y]];
+shallow_holes = [for (x = hole_xs) for (y = hole_ys)
+                   if (hole_bottom(x, y) != base_clearance) [x, y]];
+
+// The square openings of a set of holes, as one 2D shape.
+module hole_squares(positions) {
+  for (p = positions) translate(p) square(hole_size, center = true);
+}
+
+// A set of holes as a single extrusion from its shared bottom to the deck.
+module hole_shafts(positions, bottom) {
+  if (len(positions) > 0)
+    translate([0, 0, bottom])
+      linear_extrude(height = deck_z - bottom + 0.01)
+        hole_squares(positions);
 }
 
 // Every hole is given a flat bottom at one of two levels, rather than being
 // clipped against the cup. Clipping sliced any hole straddling the edge of
 // a foot into a fragment too thin to print.
 module breadboard_holes() {
-  for (x = hole_xs)
-    for (y = hole_ys)
-      hole_at(x, y);
+  hole_shafts(deep_holes, base_clearance);
+  hole_shafts(shallow_holes, foot_height + base_clearance);
+  // The chamfered mouths, built as a stack of thin slices that step outward
+  // towards the deck. A chamfer rather than a rounded fillet because the
+  // sloped wall prints without overhang, where a true radius would need
+  // support at the lip. Sliced rather than scaled because linear_extrude
+  // scales about the origin, and doing it per hole puts enough primitives
+  // in the tree to overflow the preview renderer.
+  all_holes = concat(deep_holes, shallow_holes);
+  steps = ceil(lead_in / layer_height);
+  for (i = [0 : steps - 1])
+    translate([0, 0, deck_z - lead_in + i * lead_in / steps])
+      linear_extrude(height = lead_in / steps + 0.01)
+        offset(delta = (i + 1) * lead_in / steps)
+          hole_squares(all_holes);
 }
 
 // The same cup rendered solid. Intersecting against this trims a shape to

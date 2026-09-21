@@ -36,9 +36,16 @@ File: `breadboard_box.scad`
 - `foot_gap` is the 4.8 mm measured gap plus 0.8 mm of margin, so a hole
   landing on the edge of a pad is treated as unsupported rather than
   breaking through the corner of a foot.
-- Chamfered mouths, 1.5 mm across and 0.3 mm deep at 45 degrees, guide a
-  component leg into each hole. A chamfer rather than a rounded fillet
-  because the sloped wall prints without overhang.
+- Chamfered mouths, 1.5 mm across and 0.3 mm deep, guide a component leg
+  into each hole. A chamfer rather than a rounded fillet because the sloped
+  wall prints without overhang.
+- The holes are cut with three extrusions (deep shafts, shallow shafts, and
+  the chamfer slices) rather than a pair of solids per hole. Six hundred
+  primitives overflows OpenCSG, and preview (F5) then shows nothing at all
+  with "CSG normalization resulted in an empty tree", while the F6 render
+  stays correct. The chamfer is built as 0.2 mm slices stepping outward
+  because linear_extrude's scale works about the origin, so a scaled
+  extrude per hole would need 300 more primitives.
 
 ## Stage 1 — plain box  [DONE]
 - [x] `breadboard_box.scad` wrapping `gridfinity_cup`
