@@ -139,6 +139,23 @@ File: `breadboard_box.scad`
 - [x] Verified by ray-casting rather than by eye: solid 4.20 mm corner
       outboard of the opening, a 1 mm / 2.2 mm / 1 mm channel across the
       pillar, and an open window between them.
+- [x] The four corner squares filled solid (`panel_corner_fill`). Each
+      wall's pillar reached its own end of the cavity and stopped, leaving
+      the square where two walls meet hollow - the slot is cut straight
+      through it on its way into the pillar and nothing filled in behind.
+      Visible from above as a void between the outer skin and the
+      neighbouring wall's pillar; measured as a 2.75 mm gap at x = -38.5.
+      - Added AFTER `panel_voids()`, unlike the pillars. Before the cut the
+        slot would carve it straight out again. Safe because the corner
+        square is outside every panel's travel.
+      - Built from explicit outer limits, not cavity + wall_thickness: the
+        cavity is asymmetric in X (-38.00 vs +37.90), so a fixed-size block
+        grown from each corner overshoots on one side.
+      - Inboard faces pulled back 0.01 mm so they do not land exactly on the
+        raised floor's cavity boundary. Coincident faces there made CGAL
+        emit a degenerate zero-thickness shell - a stray 10-triangle body
+        flat in the y = 17 plane, which showed as genus -1 and a second
+        body while looking perfectly fine in every render.
 
 ## Possible follow-ups (not requested)
 - Chamfer the hole mouths slightly so legs self-centre when pushed in.

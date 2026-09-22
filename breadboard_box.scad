@@ -393,6 +393,38 @@ module panel_huggers_one(w) {
   }
 }
 
+// The four corner squares, filled solid.
+//
+// Each wall's pillar reaches its own end of the cavity and stops, so the
+// square where two walls meet is left hollow: the slot for one wall is cut
+// straight through it, and nothing fills in behind. It shows up from above
+// as a void between the outer skin and the neighbouring wall's pillar.
+//
+// Filling it costs nothing - it is outside every panel's travel, outside
+// the hole grid, and clipped to the cup so it follows the rounded outside
+// corner - and it ties the two pillars of each corner into one block.
+module panel_corner_fill() {
+  intersection() {
+    solid_cup();
+    // Built from explicit outer limits rather than cavity + thickness. The
+    // cavity is not symmetric in X (-38.00 against +37.90), so growing a
+    // fixed-size block from each cavity corner overshoots on one side and
+    // leaves a zero-thickness sliver that renders as a separate body.
+    // The inboard faces are pulled back by eps so they do not land exactly
+    // on the cavity boundary the raised floor already ends at. Coincident
+    // faces there make CGAL emit a degenerate zero-thickness shell, which
+    // shows up as a stray 10-triangle body flat in the y = 17 plane.
+    for (sx = [-1, 1], sy = [-1, 1])
+      let (eps = 0.01,
+           x0 = sx < 0 ? -wall_outer[0] - 1 : cavity_x[1] - eps,
+           x1 = sx < 0 ? cavity_x[0] + eps : wall_outer[0] + 1,
+           y0 = sy < 0 ? -wall_outer[1] - 1 : cavity_y[1] - eps,
+           y1 = sy < 0 ? cavity_y[0] + eps : wall_outer[1] + 1)
+        translate([x0, y0, deck_z - panel_sink])
+          cube([x1 - x0, y1 - y0, part_top - (deck_z - panel_sink) + 1]);
+  }
+}
+
 // Half-round ridges across the slot, just above the floor recess, that the
 // bottom edge of the panel clicks down past. Putting them here rather than
 // against the panel's face means the panel is held by its edge, which it
@@ -511,6 +543,11 @@ module box() {
       }
       // Added back after the void, so they sit proud inside the groove.
       if (panel_enabled) panel_detents();
+      // Also after the void: the slot is cut clear through the corner
+      // square on its way into the pillar, so filling the corner before the
+      // cut would just have it carved out again. Safe to add afterwards
+      // because the corner square is outside every panel's travel.
+      if (panel_enabled) panel_corner_fill();
     }
     breadboard_holes();
   }
