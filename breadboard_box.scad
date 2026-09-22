@@ -248,6 +248,15 @@ wall_skin = (wall_thickness - slot_width) / 2;
 // The panel runs from the bottom of the floor recess to the top of the rim.
 panel_height = part_top - deck_z + panel_sink;
 
+// Heights of the detents up the groove. One in the floor recess catching
+// the panel's bottom edge, which is the one that actually locks it; the
+// others spaced up the groove to stop the middle of a long panel bowing
+// out. Absolute Z, not relative to the panel.
+recess_floor = deck_z - panel_sink;
+detent_heights = [recess_floor + detent_size,
+                  recess_floor + panel_height * 0.4,
+                  recess_floor + panel_height * 0.75];
+
 // For wall w (0 = front -Y, 1 = back +Y, 2 = left -X, 3 = right +X):
 // is it a long wall, which way does it face, and how wide is its opening?
 function wall_is_long(w) = w < 2;
@@ -306,9 +315,9 @@ module panel_void_one(w) {
 module panel_detents_one(w) {
   o = wall_opening(w);
   in_wall(w)
-    for (e = [0, 1])
+    for (e = [0, 1], h = detent_heights)
       translate([o[0] - groove_depth + e * (wall_width(w) + groove_depth),
-                 wall_skin, deck_z - panel_sink + detent_size])
+                 wall_skin, h])
         rotate([0, 90, 0])
           cylinder(h = groove_depth, r = detent_size, $fn = 16);
 }
@@ -357,10 +366,10 @@ module panel_notched(w) {
   difference() {
     panel_in_place(w);
     in_wall(w)
-      for (e = [0, 1])
+      for (e = [0, 1], h = detent_heights)
         translate([wall_opening(w)[0] - groove_depth
                      + e * (wall_width(w) + groove_depth),
-                   wall_skin, deck_z - panel_sink + detent_size])
+                   wall_skin, h])
           rotate([0, 90, 0])
             cylinder(h = groove_depth + 1, r = detent_size + panel_clearance,
                      $fn = 16);
