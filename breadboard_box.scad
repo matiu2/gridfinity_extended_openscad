@@ -52,6 +52,28 @@ lead_in = (mouth_size - hole_size) / 2;
 // how it comes out of the slicer regardless.
 layer_height = 0.2;
 
+/* [Sliding panel] */
+// Set false for a plain box with four solid walls.
+panel_enabled = true;
+// Which part to render. "box" and "panel" give one printable part each,
+// "both" lays them out side by side on the plate.
+part = "both"; // [box, panel, both]
+// Thickness of the panel itself.
+panel_thickness = 1.6;
+// Gap each side of the panel inside its groove. Generous, because PETG
+// prints fat and a sliding fit that is too tight is unusable.
+panel_clearance = 0.3;
+// How far the opening is inset from each end of the cavity. What is left
+// either side becomes the corner pillar the groove is cut into.
+panel_inset = 6;
+// How deep the groove cuts into each pillar, i.e. how much of the panel
+// edge is captured.
+groove_depth = 3;
+// A bump partway up the groove that the panel clicks past, so it does not
+// slide out when the box is tipped or carried.
+detent_size = 0.4;
+detent_height = 6;
+
 /* [Model detail] */
 fa = 6;
 fs = 0.4;
@@ -185,6 +207,80 @@ module solid_cup() {
       subPitch = 2));
 }
 
+// --- Sliding panel -------------------------------------------------------
+//
+// One long wall is replaced by a panel that slides straight up and out,
+// running in a groove cut into the corner pillars either side. The opening
+// starts at the deck, so the hole grid and its support are untouched.
+
+// The wall is 3.75 mm thick and the same all the way up, measured from a
+// cross-section, so the groove has room to sit inside it.
+body_top = height[0] * gf_zpitch;
+// The front wall runs from the outer face to the cavity. The slot sits
+// inside it, set in from the outer face so a skin of wall is left outboard
+// of the panel.
+wall_outer_y = -(depth[0] * gf_pitch - 0.5) / 2;
+wall_thickness = cavity_y[0] - wall_outer_y;
+// Centre the slot in the wall, so there is a similar skin of material on
+// each side of it rather than a sliver on one.
+wall_skin = (wall_thickness - (panel_thickness + 2 * panel_clearance)) / 2;
+// Near face of the slot, measured from the outside of the box inwards.
+panel_y = wall_outer_y + wall_skin;
+// The opening, inset from each end of the cavity.
+opening_x = [cavity_x[0] + panel_inset, cavity_x[1] - panel_inset];
+opening_width = opening_x[1] - opening_x[0];
+// Slot the panel runs in, and the panel that fits it.
+slot_width = panel_thickness + 2 * panel_clearance;
+panel_width = opening_width + 2 * groove_depth - 2 * panel_clearance;
+panel_height = body_top - deck_z;
+
+// The void the panel occupies: the opening itself, widened into each pillar
+// by the groove. Cut from the box, this leaves the pillars grooved and the
+// wall between them gone.
+module panel_void() {
+  // Between the pillars the whole wall goes, from the outer face through to
+  // the cavity, leaving an open window.
+  translate([opening_x[0], wall_outer_y - 1, deck_z])
+    cube([opening_width, cavity_y[0] - wall_outer_y + 1, panel_height + 1]);
+  // The slot continues into each pillar, capturing the panel edges. It sits
+  // within the wall, leaving wall_skin outboard of it.
+  translate([opening_x[0] - groove_depth, panel_y, deck_z])
+    cube([opening_width + 2 * groove_depth, slot_width, panel_height + 1]);
+}
+
+// A bump either side of the groove near the bottom, for the panel to click
+// past. Small enough that the panel flexes over it rather than jamming.
+// Bumps on the inner face of each groove, near the bottom, for the panel to
+// click past. Anchored in the pillar so they are part of the box, not
+// floating in the slot: the cylinder runs along Y and is sunk into the
+// groove's back wall, leaving only detent_size protruding into the slot.
+module panel_detents() {
+  // A half-round ridge lying along the outboard wall of each groove, where
+  // there is a skin of material to bury it in. The axis sits on that face,
+  // so half the cylinder is inside the wall and half stands proud into the
+  // slot for the panel to click over.
+  for (sx = [0, 1])
+    translate([opening_x[0] - groove_depth + sx * (opening_width + groove_depth),
+               panel_y,
+               deck_z + detent_height])
+      rotate([0, 90, 0])
+        cylinder(h = groove_depth, r = detent_size, $fn = 16);
+}
+
+module sliding_panel() {
+  difference() {
+    translate([-panel_width / 2, 0, 0])
+      cube([panel_width, panel_thickness, panel_height]);
+    // Notches for the detents to sit in when the panel is fully down.
+    for (sx = [0, 1])
+      translate([-panel_width / 2 + sx * panel_width,
+                 panel_thickness / 2,
+                 detent_height])
+        rotate([0, 90, 0])
+          cylinder(h = 4, r = detent_size, center = true, $fn = 16);
+  }
+}
+
 module raised_floor() {
   // A slab filling the cavity from the stock floor up to the new deck.
   // Oversized then trimmed to the cup, so it meets the tapered wall with
@@ -196,23 +292,42 @@ module raised_floor() {
   }
 }
 
-difference() {
-  union() {
-    set_environment(
-      width = width,
-      depth = depth,
-      height = height,
-      lip_enabled = true,
-      render_position = "center")
-    gridfinity_cup(
-      label_settings = LabelSettings(labelStyle = "disabled"),
-      lip_settings = LipSettings(lipStyle = "normal", lipNotch = true),
-      cupBase_settings = CupBaseSettings(
-        magnetSize = [0, 0],
-        screwSize = [0, 0],
-        // Half pitch: each 42 mm cell becomes four 21 mm pads.
-        subPitch = 2));
-    raised_floor();
+module box() {
+  difference() {
+    union() {
+      difference() {
+        union() {
+          set_environment(
+            width = width,
+            depth = depth,
+            height = height,
+            lip_enabled = true,
+            render_position = "center")
+          gridfinity_cup(
+            label_settings = LabelSettings(labelStyle = "disabled"),
+            lip_settings = LipSettings(lipStyle = "normal", lipNotch = true),
+            cupBase_settings = CupBaseSettings(
+              magnetSize = [0, 0],
+              screwSize = [0, 0],
+              // Half pitch: each 42 mm cell becomes four 21 mm pads.
+              subPitch = 2));
+          raised_floor();
+        }
+        if (panel_enabled) panel_void();
+      }
+      // Added back after the void, so they sit proud inside the groove.
+      if (panel_enabled) panel_detents();
+    }
+    breadboard_holes();
   }
-  breadboard_holes();
+}
+
+if (part == "box" || !panel_enabled) {
+  box();
+} else if (part == "panel") {
+  sliding_panel();
+} else {
+  box();
+  // Laid out clear of the box, flat on the plate, ready to print together.
+  translate([0, -(depth[0] * gf_pitch) / 2 - 15, 0]) sliding_panel();
 }

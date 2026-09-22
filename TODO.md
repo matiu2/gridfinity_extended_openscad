@@ -78,6 +78,24 @@ File: `breadboard_box.scad`
   nozzle, so expect them to print round and a little tight, which suits
   gripping legs; raise `hole_size` to 1.0-1.1 if they close up.
 
+## Stage 3 - sliding front panel  [DONE]
+- [x] Opening in one long wall, inset 6 mm from each cavity end, from the
+      deck up to the body top. Corner pillars 9.74 mm wide.
+- [x] Groove in each pillar, 3 mm deep, for the panel edges
+- [x] Panel 1.6 mm thick in a 2.2 mm slot, 0.3 mm clearance per side. The
+      slot is CENTRED in the 3.75 mm wall, leaving 0.775 mm of skin either
+      side; an earlier version put it 1 mm in from the outer face and left
+      only 0.55 mm inboard, too thin.
+- [x] Detent ridges in each groove. They must be anchored ON the outboard
+      face of the groove so half the cylinder is buried in the wall skin.
+      Placed anywhere else they render as separate floating bodies - watch
+      the body count, not just the genus.
+- [x] `part` selects box / panel / both; `panel_enabled` reverts to a plain
+      four-walled box
+- [x] Panel 69.30 x 1.60 x 24.55 mm, engaging 2.7 mm into each pillar
+- [x] Deck and hole grid untouched: the opening starts at the deck, so no
+      holes are cut and the deck keeps its support
+
 ## Possible follow-ups (not requested)
 - Chamfer the hole mouths slightly so legs self-centre when pushed in.
 - A matching lid, or a version with the channel running the short way.
