@@ -84,9 +84,11 @@ File: `breadboard_box.scad`
 - [x] Openings run from the deck right to the top of the part, THROUGH the
       stacking lip, so the rim does not bridge across and trap a panel.
       Each panel carries its own section of rim.
-- [x] Two detents per groove: one near the bottom, one just under the rim.
-      The upper one holds the pillars together at the top, which the lip
-      would otherwise have done.
+- [x] The panel sinks `panel_sink` (1 mm) into a recess in the floor, and
+      the detents sit in that recess at the bottom edge. Earlier they were
+      partway up the groove, pressing on the panel's FACE, which a 1.6 mm
+      sheet just bows away from. Capturing the bottom EDGE locks it in the
+      one direction the panel cannot flex.
 - [x] Corner pillars 9.74 mm, keeping 6.74 mm of material between the two
       grooves that meet at each corner. The deck slab ties all four
       pillars together at the bottom.

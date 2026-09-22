@@ -75,7 +75,10 @@ groove_depth = 3;
 // A bump partway up the groove that the panel clicks past, so it does not
 // slide out when the box is tipped or carried.
 detent_size = 0.4;
-detent_height = 6;
+// How far the panel sinks into a recess in the floor below the deck. This
+// recess is what locks the panel down: it captures the bottom edge, which a
+// thin panel cannot flex away from.
+panel_sink = 1;
 
 /* [Model detail] */
 fa = 6;
@@ -236,10 +239,8 @@ wall_thickness = wall_outer[1] - cavity_y[1];
 slot_width = panel_thickness + 2 * panel_clearance;
 wall_skin = (wall_thickness - slot_width) / 2;
 
-// Panel heights, and where the two detents sit: one near the bottom, one
-// just below the rim to capture the top.
-panel_height = part_top - deck_z;
-detent_heights = [detent_height, panel_height - detent_height];
+// The panel runs from the bottom of the floor recess to the top of the rim.
+panel_height = part_top - deck_z + panel_sink;
 
 // For wall w (0 = front -Y, 1 = back +Y, 2 = left -X, 3 = right +X):
 // is it a long wall, which way does it face, and how wide is its opening?
@@ -276,9 +277,13 @@ module panel_void_one(w) {
     // The window: the whole wall thickness, between the pillars.
     translate([o[0], -1, deck_z])
       cube([wall_width(w), wall_thickness + 1, panel_height + 1]);
-    // The slot, continuing into each pillar.
-    translate([o[0] - groove_depth, wall_skin, deck_z])
-      cube([wall_width(w) + 2 * groove_depth, slot_width, panel_height + 1]);
+    // The slot, continuing into each pillar, and sunk panel_sink below the
+    // deck so the panel drops into a recess in the floor. The recess is
+    // what locks the panel: it holds the bottom edge in the one direction a
+    // thin panel cannot flex out of.
+    translate([o[0] - groove_depth, wall_skin, deck_z - panel_sink])
+      cube([wall_width(w) + 2 * groove_depth, slot_width,
+            panel_height + panel_sink + 1]);
     // The rim above the opening goes with the panel, so clear it from the
     // box across the panel's width plus its sliding clearance.
     translate([o[0] - groove_depth, -1, body_top])
@@ -286,15 +291,18 @@ module panel_void_one(w) {
   }
 }
 
-// Half-round ridges on the outboard wall of each groove, where there is a
-// skin of material to bury them in. The axis sits on that face, so half of
-// each cylinder is inside the wall and half stands proud into the slot.
+// Half-round ridges across the slot, just above the floor recess, that the
+// bottom edge of the panel clicks down past. Putting them here rather than
+// against the panel's face means the panel is held by its edge, which it
+// cannot flex away from, instead of by friction on a face a 1.6 mm sheet
+// bows out of easily. They run along the slot's outboard wall so there is
+// a skin of material to bury half of each cylinder in.
 module panel_detents_one(w) {
   o = wall_opening(w);
   in_wall(w)
-    for (e = [0, 1], h = detent_heights)
+    for (e = [0, 1])
       translate([o[0] - groove_depth + e * (wall_width(w) + groove_depth),
-                 wall_skin, deck_z + h])
+                 wall_skin, deck_z - panel_sink + detent_size])
         rotate([0, 90, 0])
           cylinder(h = groove_depth, r = detent_size, $fn = 16);
 }
@@ -314,8 +322,10 @@ module panel_in_place(w) {
   // panel drops in without binding and so the two stay separate bodies.
   in_wall(w)
     translate([o[0] - groove_depth + panel_clearance,
-               wall_skin + panel_clearance, deck_z + panel_clearance])
-      cube([pw, panel_thickness, body_top - deck_z - panel_clearance]);
+               wall_skin + panel_clearance,
+               deck_z - panel_sink + panel_clearance])
+      cube([pw, panel_thickness,
+            body_top - deck_z + panel_sink - panel_clearance]);
   // The rim section on top, taken from the cup itself so the profile
   // matches the lip either side of it exactly. The cup is shrunk by the
   // clearance first, so the panel's rim is a touch inside the box's and the
@@ -341,10 +351,10 @@ module panel_notched(w) {
   difference() {
     panel_in_place(w);
     in_wall(w)
-      for (e = [0, 1], h = detent_heights)
+      for (e = [0, 1])
         translate([wall_opening(w)[0] - groove_depth
                      + e * (wall_width(w) + groove_depth),
-                   wall_skin, deck_z + h])
+                   wall_skin, deck_z - panel_sink + detent_size])
           rotate([0, 90, 0])
             cylinder(h = groove_depth + 1, r = detent_size + panel_clearance,
                      $fn = 16);
