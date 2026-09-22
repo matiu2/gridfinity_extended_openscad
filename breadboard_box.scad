@@ -99,6 +99,21 @@ panel_recess = 1;
 // recess is what locks the panel down: it captures the bottom edge, which a
 // thin panel cannot flex away from.
 panel_sink = 1;
+// Lead-in chamfer at the top of the channel, flaring it open so the panel
+// can be aimed roughly and still find the slot. Coming down from above the
+// panel meets nothing until body_top and then hits a square edge, which
+// makes a 2.2 mm slot a blind target; this turns it into a funnel.
+// Measured across the slot, per side, at the mouth.
+//
+// Capped by what the skin can spare. The outboard skin and the inboard wrap
+// are both 1 mm, and the chamfer thins them at the mouth; 0.4 mm leaves
+// 0.6 mm, which is still over one 0.4 mm extrusion width. Taking the full
+// 0.8 mm would leave 0.2 mm, thinner than the nozzle can lay down, and the
+// slicer would simply drop it.
+panel_lead_in = 0.4;
+// How far down the chamfer runs. Taller is easier to aim into but eats the
+// grip at the top of the panel, so keep it a small fraction of the height.
+panel_lead_in_depth = 2.5;
 
 /* [Model detail] */
 fa = 6;
@@ -316,6 +331,24 @@ module panel_void_one(w) {
     translate([o[0] - groove_depth, wall_skin, deck_z - panel_sink])
       cube([wall_width(w) + 2 * groove_depth, slot_width,
             panel_height + panel_sink + 1]);
+    // Lead-in chamfer at the top of the channel. The slot's mouth is
+    // flared open by panel_lead_in on each face, narrowing back to the
+    // slot proper panel_lead_in_depth further down, so a panel offered up
+    // roughly square is walked into place instead of having to be lined up
+    // with a 2.2 mm target by eye.
+    //
+    // It runs the whole length of the slot, pillars included: the pillars
+    // are where the panel is tightest, so they are exactly where the funnel
+    // is worth having. hull() of the two rectangles gives the taper.
+    if (panel_lead_in > 0)
+      translate([o[0] - groove_depth, 0, 0])
+        hull() {
+          translate([0, wall_skin - panel_lead_in, body_top])
+            cube([wall_width(w) + 2 * groove_depth,
+                  slot_width + 2 * panel_lead_in, 0.01]);
+          translate([0, wall_skin, body_top - panel_lead_in_depth])
+            cube([wall_width(w) + 2 * groove_depth, slot_width, 0.01]);
+        }
     // The rim above the opening goes with the panel, so clear it from the
     // box across the panel's width plus its sliding clearance, through the
     // whole wall thickness.

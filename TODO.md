@@ -157,6 +157,30 @@ File: `breadboard_box.scad`
         flat in the y = 17 plane, which showed as genus -1 and a second
         body while looking perfectly fine in every render.
 
+- [x] Lead-in chamfer at the top of the channel, so the panel can be aimed
+      roughly and still find the slot. Coming down from above the panel met
+      nothing until body_top and then hit a square edge - a 2.2 mm blind
+      target. The mouth now opens to 3.00 mm and narrows back to 2.20 mm
+      over 2.5 mm of height, so there is 1.4 mm of slop to aim into rather
+      than 0.6 mm.
+      - `panel_lead_in` is 0.4 mm per side, NOT more. The outboard skin and
+        the inboard wrap are both 1 mm and the chamfer thins them at the
+        mouth; 0.4 leaves 0.6 mm, still over one 0.4 mm extrusion width.
+        0.8 would leave 0.2 mm and the slicer would drop it entirely.
+      - Runs the whole length of the slot, pillars included: the pillars are
+        where the panel is tightest, so that is where the funnel earns its
+        keep. Verified present at x = -34.9 through +34.8.
+
+## Note on the "hollow corner" above z = 35
+Not a defect - it is the stacking lip's own recess, the same on a stock
+gridfinity cup. Measured side by side at x = -38.5: stock gives 2.80 / 2.01
+/ 1.37 mm at z = 35 / 36 / 38 and this box gives 2.76 / 1.94 / 1.47. Below
+the lip our corner is 9.72 mm of solid material where stock is 0.87. Filling
+it would break stacking and stop the carry box's roof plugins seating.
+
+When checking a corner, scan the FULL height. Measuring only at z = 20 says
+nothing about the lip section, which is the part that looks hollow.
+
 ## Possible follow-ups (not requested)
 - Chamfer the hole mouths slightly so legs self-centre when pushed in.
 - A matching lid, or a version with the channel running the short way.
