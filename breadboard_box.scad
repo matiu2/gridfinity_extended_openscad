@@ -58,9 +58,15 @@ panel_enabled = true;
 // Which walls slide out: 0 front (-Y), 1 back (+Y), 2 left (-X), 3 right
 // (+X). All four by default; [0] gives just the front.
 panel_walls = [0, 1, 2, 3];
-// Which part to render. "box" and "panel" give one printable part each,
-// "both" lays them out side by side on the plate.
-part = "both"; // [box, panel, both]
+// Which part to render.
+//   assembled - panels seated in the box, as it ends up in use. The lip
+//               reads as continuous, which is what the carry box's roof and
+//               floor plugins grip. One connected body, not for printing.
+//   print     - the same five parts with each panel moved clear of the box,
+//               so a slicer can split the STL into objects. STL carries no
+//               part names, so separation is the only signal it has.
+//   box       - just the box; panel - just the panels.
+part = "print"; // [assembled, print, box, panel]
 // Thickness of the panel itself.
 panel_thickness = 1.6;
 // Gap each side of the panel inside its groove. Generous, because PETG
@@ -407,7 +413,7 @@ module box() {
   }
 }
 
-// How far each panel is moved straight out from its wall in the "both"
+// How far each panel is moved straight out from its wall in the "print"
 // layout. Only needs to beat the corner radius for the panels to come away
 // cleanly, but a wide gap makes them unambiguously separate bodies, which
 // is what lets a slicer split the STL into parts (STL carries no part
@@ -415,9 +421,10 @@ module box() {
 panel_explode = 25;
 
 // Moves the children out along wall w's own outward direction: front -Y,
-// back +Y, left -X, right +X.
+// back +Y, left -X, right +X. Zero in the assembled view.
 module explode(w) {
-  translate([[0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0]][w] * panel_explode)
+  d = part == "assembled" ? 0 : panel_explode;
+  translate([[0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0]][w] * d)
     children();
 }
 

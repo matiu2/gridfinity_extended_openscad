@@ -105,11 +105,15 @@ File: `breadboard_box.scad`
       four-walled box
 - [x] Two panel sizes: 69.30 x 1.60 x 27.99 mm for the long walls, 27.40
       wide for the short ends. Both engage 2.7 mm into each pillar.
-- [x] In the "both" layout each panel is translated 25 mm straight out from
-      its wall, so the five parts are disconnected bodies. STL carries no
-      part names, so physical separation is the only way a slicer can split
-      the file into objects; left in place the panels touch at the corners
-      and the whole thing imports as one body.
+- [x] `part` gives two views of the same model:
+      - "assembled": panels seated, one body, 83.50 x 41.50 x 38.74, a
+        standard 2x1x5 gridfinity bin. The lip is continuous (verified by
+        cross-section at z = 38: one closed loop), which matters because the
+        bin lives in a 5-unit carry box whose roof AND floor have gridfinity
+        lip plugins gripping it.
+      - "print": each panel translated 25 mm out from its wall, giving five
+        disconnected bodies. STL carries no part names, so separation is the
+        only way a slicer can split the file into objects.
 - [x] Deck and hole grid untouched: the opening starts at the deck, so no
       holes are cut and the deck keeps its support
 
