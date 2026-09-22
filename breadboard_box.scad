@@ -69,9 +69,22 @@ panel_walls = [0, 1, 2, 3];
 part = "print"; // [assembled, print, box, panel]
 // Thickness of the panel itself.
 panel_thickness = 1.6;
-// Gap each side of the panel inside its groove. Generous, because PETG
-// prints fat and a sliding fit that is too tight is unusable.
-panel_clearance = 0.3;
+// Gap each side of the panel inside its groove.
+//
+// Small on purpose. The panel is printed FLAT, so its 1.6 mm thickness is 8
+// layers of 0.2 and comes out accurate; the slot is an XY feature on a box
+// printed upright, which is the looser axis. On top of that the slicer runs
+// xy_hole_compensation = 0.2 for the 0.9 mm breadboard holes, and that
+// widens this slot too - so 0.1 modelled lands near 0.2 per side printed,
+// and the 0.3 this started at landed near 0.4 per side, which rattles.
+//
+// Raise it if the panels bind; the printed fit is roughly this plus 0.1.
+panel_clearance = 0.1;
+// Gap used only to keep the panel a separate body from the box in the
+// model, where two touching solids would fuse into one. Nothing to do with
+// the printed fit, so it stays put when panel_clearance is tuned. It has to
+// survive STL rounding, so do not take it below about 0.05.
+panel_model_gap = 0.15;
 // How far the opening is inset from each end of the cavity. What is left
 // either side becomes the corner pillar the groove is cut into.
 panel_inset = 6;
@@ -487,15 +500,19 @@ module panel_huggers() {
 module panel_in_place(w) {
   o = wall_opening(w);
   pw = panel_width_of(w);
+  // Offset that centres the panel across the slot.
+  centred = (slot_width - panel_thickness) / 2;
   // The flat part of the panel, from just above the deck up to the body
-  // top. It rests a clearance above the deck rather than on it, both so the
-  // panel drops in without binding and so the two stay separate bodies.
+  // top. It is centred across the slot and stands panel_model_gap off the
+  // recess floor, so that as modelled it touches the box nowhere and the
+  // two stay separate bodies. That gap is a modelling concern only - the
+  // printed fit comes from panel_clearance, which sizes the slot.
   in_wall(w)
     translate([o[0] - groove_depth + panel_clearance,
-               wall_skin + panel_clearance,
-               deck_z - panel_sink + panel_clearance])
+               wall_skin + centred,
+               deck_z - panel_sink + panel_model_gap])
       cube([pw, panel_thickness,
-            body_top - deck_z + panel_sink - panel_clearance]);
+            body_top - deck_z + panel_sink - panel_model_gap]);
   // The rim section on top, taken from the cup itself so the profile
   // matches the lip either side of it exactly. The cup is shrunk by the
   // clearance first, so the panel's rim is a touch inside the box's and the
@@ -506,17 +523,17 @@ module panel_in_place(w) {
     // into the skin of wall the box keeps outboard of the slot.
     in_wall(w)
       translate([o[0] - groove_depth + panel_clearance,
-                 wall_skin + panel_clearance, body_top])
+                 wall_skin + centred, body_top])
         cube([pw, panel_thickness, lip_rise + 1]);
   }
 }
 
 // One panel, still in its place in the box, with the notches cut that let
 // it sit over the detents when fully home.
-// The notches are cut oversize by the sliding clearance, so that as
-// modelled the panel and the box never touch and stay separate bodies. In
-// the printed parts the detent still stands proud of the notch walls, and
-// the panel flexes over it on the way in.
+// The notches are cut oversize by panel_model_gap, so that as modelled the
+// panel and the box never touch and stay separate bodies. In the printed
+// parts the detent still stands proud of the notch walls, and the panel
+// flexes over it on the way in.
 module panel_notched(w) {
   difference() {
     panel_in_place(w);
@@ -526,7 +543,7 @@ module panel_notched(w) {
                      + e * (wall_width(w) + groove_depth),
                    wall_skin, h])
           rotate([0, 90, 0])
-            cylinder(h = groove_depth + 1, r = detent_size + panel_clearance,
+            cylinder(h = groove_depth + 1, r = detent_size + panel_model_gap,
                      $fn = 16);
   }
 }

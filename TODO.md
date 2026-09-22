@@ -171,6 +171,24 @@ File: `breadboard_box.scad`
         where the panel is tightest, so that is where the funnel earns its
         keep. Verified present at x = -34.9 through +34.8.
 
+- [x] Panel clearance cut from 0.3 to 0.1 mm per side, and split from the
+      modelling gap that was riding on the same parameter.
+      - The panel is printed FLAT, so its 1.6 mm is 8 layers of 0.2 and
+        comes out accurate. The slot is an XY feature on a box printed
+        upright - the looser axis - so the clearance belongs there, not
+        spread across both.
+      - `xy_hole_compensation = 0.2`, set for the 0.9 mm breadboard holes,
+        widens this slot too. So 0.3 modelled was landing near 0.4 per side
+        printed: 0.8 mm of total slop on a 1.6 mm panel, which rattles.
+        0.1 modelled lands near 0.2 per side, halving it to 0.4 mm.
+      - `panel_model_gap` (0.15) now does the job of keeping the panel a
+        separate body from the box in the render. It was `panel_clearance`
+        doing double duty, so tightening the fit would have fused the two
+        into one body and broken the print layout. Verified still five
+        bodies at 0.1 mm clearance.
+      - If the panels bind, raise `panel_clearance`; printed fit is roughly
+        that value plus 0.1.
+
 ## Note on the "hollow corner" above z = 35
 Not a defect - it is the stacking lip's own recess, the same on a stock
 gridfinity cup. Measured side by side at x = -38.5: stock gives 2.80 / 2.01
