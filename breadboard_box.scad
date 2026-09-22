@@ -81,12 +81,20 @@ groove_depth = 3;
 // A bump partway up the groove that the panel clicks past, so it does not
 // slide out when the box is tipped or carried.
 detent_size = 0.4;
-// Square pillars at each end of a panel that hug its inner face, stopping
-// it from bowing into the box. Set hug_size to 0 to leave them off.
+// Square pillars at each end of a panel, standing at the very edge of the
+// box. These are the corner, fattened: the groove is cut into them, so the
+// pillar wraps the panel on three sides rather than the wall holding it.
+// Set to 0 to leave them off and fall back to a plain slot.
 hug_size = 3;
-// How far a hugger reaches past the panel's inner face. The panel has to
-// flex very slightly to pass, which is what grips it.
+// How far the pillar wraps back over the panel's inner face. This lip is
+// what holds the panel in: it has to be crossed to get the panel out
+// sideways, which it cannot do, so the only way out is straight up.
 hug_intrusion = 1;
+// How far the panel's outer face sits inside the box's outer surface. The
+// pillar needs material on both sides of the panel to form a channel, and
+// this is the outboard half of it. Without it the slot would break out
+// through the side of the box.
+panel_recess = 1;
 // How far the panel sinks into a recess in the floor below the deck. This
 // recess is what locks the panel down: it captures the bottom edge, which a
 // thin panel cannot flex away from.
@@ -246,10 +254,13 @@ part_top = body_top + lip_rise;
 wall_outer = [(width[0] * gf_pitch - 0.5) / 2, (depth[0] * gf_pitch - 0.5) / 2];
 wall_thickness = wall_outer[1] - cavity_y[1];
 
-// Slot the panel runs in, centred in the wall so there is a similar skin of
-// material either side rather than a sliver on one.
+// Slot the panel runs in. It is pushed out to sit panel_recess inside the
+// box's outer surface, rather than centred in the wall, so that the panel
+// reads as part of the outside face and the pillar has room on the inboard
+// side to wrap back over it. wall_skin is the material left outboard of the
+// slot, measured from the wall's outer face inward.
 slot_width = panel_thickness + 2 * panel_clearance;
-wall_skin = (wall_thickness - slot_width) / 2;
+wall_skin = panel_recess;
 
 // The panel runs from the bottom of the floor recess to the top of the rim.
 panel_height = part_top - deck_z + panel_sink;
@@ -306,31 +317,80 @@ module panel_void_one(w) {
       cube([wall_width(w) + 2 * groove_depth, slot_width,
             panel_height + panel_sink + 1]);
     // The rim above the opening goes with the panel, so clear it from the
-    // box across the panel's width plus its sliding clearance.
+    // box across the panel's width plus its sliding clearance, through the
+    // whole wall thickness.
+    //
+    // The whole thickness matters: the panel's own rim section has to reach
+    // the outer surface, because those sections and the corners together
+    // are what make the lip read as one continuous profile for the carry
+    // box's plugins. Leaving a skin of box standing outboard here breaks
+    // the lip into islands - the corners and each panel's rim separately.
     translate([o[0] - groove_depth, -1, body_top])
       cube([pw + 2 * panel_clearance, wall_thickness + 2, lip_rise + 1]);
   }
 }
 
-// Square pillars standing on the inboard side of the slot at each end of a
-// panel, reaching hug_intrusion past the panel's inner face so they hug it
-// against the outer wall of the slot. They run the full height of the
-// panel, so unlike a detent they hold it along its whole length rather than
-// at one point. Nothing is grooved: the panel stays a plain sheet, and the
-// pillar is simply fatter than the wall around it.
+// The corner pillars, fattened where the panel slides into them. Each one
+// runs from the box's outer surface inward far enough to cover the slot and
+// then wrap hug_intrusion back over the panel's inner face. The slot itself
+// is cut out of these by panel_void_one, so what is left is a U-channel:
+// material outboard of the panel, material inboard of it, and the solid
+// end of the pillar closing the channel off. That is what "the corners hold
+// the groove" means - the panel is captured by the corner, not by the wall.
+//
+// Drawn in section, looking down, at one end of a panel:
+//
+//     outer surface
+//     ---------------+
+//      recess  |     |
+//      PANEL   |     |  <- slot, cut away
+//      wrap    |     |
+//     ---------+     |  <- pillar closes the end
+//               inside
 module panel_huggers_one(w) {
   o = wall_opening(w);
-  // Inner face of the slot, and how far past it the pillar reaches.
-  slot_inner = wall_skin + slot_width;
-  in_wall(w)
-    for (e = [0, 1])
-      translate([e == 0 ? o[0] : o[1] - hug_size,
-                 slot_inner - hug_intrusion,
-                 deck_z - panel_sink])
-        // Stop at the body top: above that is the lip, whose profile the
-        // carry box's plugins grip, and a hugger there would foul them.
-        cube([hug_size, hug_size + hug_intrusion,
-              body_top - (deck_z - panel_sink)]);
+  // How far in from the outer surface the pillar reaches. The channel only
+  // needs recess + slot + wrap, but the pillar is taken all the way back to
+  // the wall's inner face so the corner is a solid block rather than a
+  // sleeve with a void behind it. Solid prints better, gives the wrap
+  // something to be stiff against, and costs only the corner volume.
+  depth = max(wall_skin + slot_width + hug_intrusion, wall_thickness);
+  // The pillar spans the whole run of slot cut into the corner, plus
+  // hug_size of solid material past the end of it. The part over the slot
+  // becomes the wrap that holds the panel; the part past the end closes the
+  // channel off. Sizing it to the slot alone would let the slot cut the
+  // whole pillar away, leaving the thin outboard skin and no channel.
+  span = groove_depth + hug_size;
+  // The pillar is in two pieces vertically, because the panel's rim has to
+  // pass through the lip section and the pillar cannot be in its way.
+  //
+  //   deck .. body_top   the full pillar, over the slot and past its end.
+  //                      This is the channel that holds the panel.
+  //   body_top .. top    only the part beyond the slot, where no panel rim
+  //                      travels. That is the corner proper, and taking it
+  //                      up to the lip is what fills the gap that was left
+  //                      when the whole pillar stopped at body_top.
+  //
+  // Both are intersected with the cup so nothing stands proud of the lip's
+  // profile, which the carry box's roof and floor plugins grip.
+  intersection() {
+    solid_cup();
+    union() {
+      in_wall(w)
+        for (e = [0, 1])
+          translate([e == 0 ? o[0] - span : o[1], 0, deck_z - panel_sink])
+            cube([span, depth, body_top - (deck_z - panel_sink)]);
+      // The corner block above, sitting outboard of the rim cut so the
+      // panel's own rim section still runs clear to the outer surface.
+      // The rim cut reaches groove_depth + panel_clearance past the
+      // opening, so the block starts there and runs to the pillar's end.
+      rim_end = groove_depth + panel_clearance;
+      in_wall(w)
+        for (e = [0, 1])
+          translate([e == 0 ? o[0] - span : o[1] + rim_end, 0, body_top])
+            cube([span - rim_end, depth, lip_rise + 1]);
+    }
+  }
 }
 
 // Half-round ridges across the slot, just above the floor recess, that the
@@ -442,12 +502,15 @@ module box() {
               // Half pitch: each 42 mm cell becomes four 21 mm pads.
               subPitch = 2));
           raised_floor();
+          // Before the void, not after: the slot is cut through the
+          // pillars, which is what turns them into the U-channel that
+          // holds the panel. Adding them afterwards would fill it in.
+          if (panel_enabled) panel_huggers();
         }
         if (panel_enabled) panel_voids();
       }
       // Added back after the void, so they sit proud inside the groove.
       if (panel_enabled) panel_detents();
-      if (panel_enabled) panel_huggers();
     }
     breadboard_holes();
   }

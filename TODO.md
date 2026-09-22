@@ -94,9 +94,10 @@ File: `breadboard_box.scad`
       pillars together at the bottom.
 - [x] Groove in each pillar, 3 mm deep, for the panel edges
 - [x] Panel 1.6 mm thick in a 2.2 mm slot, 0.3 mm clearance per side. The
-      slot is CENTRED in the 3.75 mm wall, leaving 0.775 mm of skin either
-      side; an earlier version put it 1 mm in from the outer face and left
-      only 0.55 mm inboard, too thin.
+      slot now sits `panel_recess` = 1 mm in from the OUTER face, so the
+      panel reads as part of the outside of the box and the corner pillar
+      has room inboard to wrap back over it. (It was centred in the 3.75 mm
+      wall before, 0.775 mm of skin either side.)
 - [x] Detent ridges in each groove. They must be anchored ON the outboard
       face of the groove so half the cylinder is buried in the wall skin.
       Placed anywhere else they render as separate floating bodies - watch
@@ -106,16 +107,38 @@ File: `breadboard_box.scad`
 - [x] Two panel sizes: 69.30 x 1.60 x 27.99 mm for the long walls, 27.40
       wide for the short ends. Both engage 2.7 mm into each pillar.
 - [x] `part` gives two views of the same model:
-      - "assembled": panels seated, one body, 83.50 x 41.50 x 38.74, a
-        standard 2x1x5 gridfinity bin. The lip is continuous (verified by
-        cross-section at z = 38: one closed loop), which matters because the
-        bin lives in a 5-unit carry box whose roof AND floor have gridfinity
-        lip plugins gripping it.
+      - "assembled": panels seated, one connected body, 83.49 x 41.50 x
+        38.74, a standard 2x1x5 gridfinity bin. This matters because the bin
+        lives in a 5-unit carry box whose roof AND floor have gridfinity lip
+        plugins gripping it.
+        NOTE: a cross-section at z = 38 gives EIGHT loops, not one - four
+        corners plus each panel's rim section. That is correct and expected:
+        the panels are deliberately separate bodies with 0.3 mm clearance,
+        so in the model the lip reads as islands. Printed and assembled the
+        profile closes up. An earlier note here claimed one loop; that was
+        measured before the panels became separate bodies and was wrong.
       - "print": each panel translated 25 mm out from its wall, giving five
         disconnected bodies. STL carries no part names, so separation is the
         only way a slicer can split the file into objects.
 - [x] Deck and hole grid untouched: the opening starts at the deck, so no
       holes are cut and the deck keeps its support
+
+- [x] Corner pillars form the groove themselves, rather than the wall
+      holding the panel and separate huggers pressing on it:
+      - The pillar spans `groove_depth + hug_size` = 6 mm along the wall, so
+        it covers the run of slot cut into the corner AND 3 mm of solid
+        material past the end of it. Sizing it to the slot alone let the
+        slot cut the whole pillar away, leaving only the 1 mm outboard skin
+        and no channel - caught by ray-casting the wall section, where the
+        corner read as two 1 mm skins with a void between them.
+      - It is added BEFORE `panel_voids()` so the slot cuts through it. Added
+        after, it just fills the slot back in.
+      - Above `body_top` only the part beyond the rim cut continues, up to
+        the lip. The full pillar cannot go there: the panel's rim section
+        has to reach the outer surface through that band.
+- [x] Verified by ray-casting rather than by eye: solid 4.20 mm corner
+      outboard of the opening, a 1 mm / 2.2 mm / 1 mm channel across the
+      pillar, and an open window between them.
 
 ## Possible follow-ups (not requested)
 - Chamfer the hole mouths slightly so legs self-centre when pushed in.
