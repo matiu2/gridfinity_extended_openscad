@@ -81,6 +81,12 @@ groove_depth = 3;
 // A bump partway up the groove that the panel clicks past, so it does not
 // slide out when the box is tipped or carried.
 detent_size = 0.4;
+// Square pillars at each end of a panel that hug its inner face, stopping
+// it from bowing into the box. Set hug_size to 0 to leave them off.
+hug_size = 3;
+// How far a hugger reaches past the panel's inner face. The panel has to
+// flex very slightly to pass, which is what grips it.
+hug_intrusion = 1;
 // How far the panel sinks into a recess in the floor below the deck. This
 // recess is what locks the panel down: it captures the bottom edge, which a
 // thin panel cannot flex away from.
@@ -306,6 +312,27 @@ module panel_void_one(w) {
   }
 }
 
+// Square pillars standing on the inboard side of the slot at each end of a
+// panel, reaching hug_intrusion past the panel's inner face so they hug it
+// against the outer wall of the slot. They run the full height of the
+// panel, so unlike a detent they hold it along its whole length rather than
+// at one point. Nothing is grooved: the panel stays a plain sheet, and the
+// pillar is simply fatter than the wall around it.
+module panel_huggers_one(w) {
+  o = wall_opening(w);
+  // Inner face of the slot, and how far past it the pillar reaches.
+  slot_inner = wall_skin + slot_width;
+  in_wall(w)
+    for (e = [0, 1])
+      translate([e == 0 ? o[0] : o[1] - hug_size,
+                 slot_inner - hug_intrusion,
+                 deck_z - panel_sink])
+        // Stop at the body top: above that is the lip, whose profile the
+        // carry box's plugins grip, and a hugger there would foul them.
+        cube([hug_size, hug_size + hug_intrusion,
+              body_top - (deck_z - panel_sink)]);
+}
+
 // Half-round ridges across the slot, just above the floor recess, that the
 // bottom edge of the panel clicks down past. Putting them here rather than
 // against the panel's face means the panel is held by its edge, which it
@@ -324,6 +351,9 @@ module panel_detents_one(w) {
 
 module panel_voids() { for (w = panel_walls) panel_void_one(w); }
 module panel_detents() { for (w = panel_walls) panel_detents_one(w); }
+module panel_huggers() {
+  if (hug_size > 0) for (w = panel_walls) panel_huggers_one(w);
+}
 
 // One panel, in the position it occupies in the box. Built here rather than
 // flat so that the top can be intersected with the cup, which gives the
@@ -417,6 +447,7 @@ module box() {
       }
       // Added back after the void, so they sit proud inside the groove.
       if (panel_enabled) panel_detents();
+      if (panel_enabled) panel_huggers();
     }
     breadboard_holes();
   }
