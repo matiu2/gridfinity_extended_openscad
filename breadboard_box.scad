@@ -255,20 +255,23 @@ function panel_width_of(w) =
 
 // Places the children in the frame of wall w: x runs along the wall, y runs
 // outward through its thickness from the slot's inner face.
+// Rotation that brings each wall to the front, facing -Y: front stays put,
+// back turns 180, left and right turn 90 either way. A rotation rather than
+// a mirror, so the handedness is the same for every wall and geometry
+// borrowed from the cup (the rim) lines up with the rest.
+function wall_rotation(w) = [0, 180, 270, 90][w];
+
 module in_wall(w) {
-  s = wall_sign(w);
-  // Long walls lie along X; short walls are the same thing rotated.
-  rotate([0, 0, wall_is_long(w) ? 0 : 90])
-    // Bring the outer face of this wall to the front, facing -Y.
-    scale([1, s * (wall_is_long(w) ? 1 : -1), 1])
-      translate([0, -wall_outer[wall_is_long(w) ? 1 : 0], 0])
-        children();
+  rotate([0, 0, wall_rotation(w)])
+    translate([0, -wall_outer[wall_is_long(w) ? 1 : 0], 0])
+      children();
 }
 
 // The void one panel occupies: the window through the wall, plus the slot
 // running on into the pillar at each end.
 module panel_void_one(w) {
   o = wall_opening(w);
+  pw = panel_width_of(w);
   in_wall(w) {
     // The window: the whole wall thickness, between the pillars.
     translate([o[0], -1, deck_z])
@@ -276,6 +279,10 @@ module panel_void_one(w) {
     // The slot, continuing into each pillar.
     translate([o[0] - groove_depth, wall_skin, deck_z])
       cube([wall_width(w) + 2 * groove_depth, slot_width, panel_height + 1]);
+    // The rim above the opening goes with the panel, so clear it from the
+    // box across the panel's width plus its sliding clearance.
+    translate([o[0] - groove_depth, -1, body_top])
+      cube([pw + 2 * panel_clearance, wall_thickness + 2, lip_rise + 1]);
   }
 }
 
@@ -295,18 +302,59 @@ module panel_detents_one(w) {
 module panel_voids() { for (w = panel_walls) panel_void_one(w); }
 module panel_detents() { for (w = panel_walls) panel_detents_one(w); }
 
-// One panel, lying flat: width along X, thickness in Y, height in Z. The
-// notches let it sit over the detents when fully home.
-module sliding_panel(w = 0) {
+// One panel, in the position it occupies in the box. Built here rather than
+// flat so that the top can be intersected with the cup, which gives the
+// panel the lip's own stepped profile and keeps the rim continuous when all
+// the panels are in.
+module panel_in_place(w) {
+  o = wall_opening(w);
   pw = panel_width_of(w);
-  difference() {
-    translate([-pw / 2, 0, 0]) cube([pw, panel_thickness, panel_height]);
-    for (e = [0, 1], h = detent_heights)
-      translate([-pw / 2 + e * pw, panel_thickness / 2, h])
-        rotate([0, 90, 0])
-          cylinder(h = 4, r = detent_size, center = true, $fn = 16);
+  // The flat part of the panel, from just above the deck up to the body
+  // top. It rests a clearance above the deck rather than on it, both so the
+  // panel drops in without binding and so the two stay separate bodies.
+  in_wall(w)
+    translate([o[0] - groove_depth + panel_clearance,
+               wall_skin + panel_clearance, deck_z + panel_clearance])
+      cube([pw, panel_thickness, body_top - deck_z - panel_clearance]);
+  // The rim section on top, taken from the cup itself so the profile
+  // matches the lip either side of it exactly. The cup is shrunk by the
+  // clearance first, so the panel's rim is a touch inside the box's and the
+  // two do not fuse into one body.
+  intersection() {
+    solid_cup();
+    // Confined to the slot, like the rest of the panel, so it does not eat
+    // into the skin of wall the box keeps outboard of the slot.
+    in_wall(w)
+      translate([o[0] - groove_depth + panel_clearance,
+                 wall_skin + panel_clearance, body_top])
+        cube([pw, panel_thickness, lip_rise + 1]);
   }
 }
+
+// One panel, still in its place in the box, with the notches cut that let
+// it sit over the detents when fully home.
+// The notches are cut oversize by the sliding clearance, so that as
+// modelled the panel and the box never touch and stay separate bodies. In
+// the printed parts the detent still stands proud of the notch walls, and
+// the panel flexes over it on the way in.
+module panel_notched(w) {
+  difference() {
+    panel_in_place(w);
+    in_wall(w)
+      for (e = [0, 1], h = detent_heights)
+        translate([wall_opening(w)[0] - groove_depth
+                     + e * (wall_width(w) + groove_depth),
+                   wall_skin, deck_z + h])
+          rotate([0, 90, 0])
+            cylinder(h = groove_depth + 1, r = detent_size + panel_clearance,
+                     $fn = 16);
+  }
+}
+
+// Everything is left where it belongs in the box. The panels are separate
+// bodies sitting in their slots, so the whole thing renders as one model
+// with the rim continuous, and the slicer splits it into parts to print.
+module sliding_panel(w = 0) { panel_notched(w); }
 
 module raised_floor() {
   // A slab filling the cavity from the stock floor up to the new deck.
@@ -349,20 +397,26 @@ module box() {
   }
 }
 
-// The distinct panel sizes needed: the long walls share one size and the
-// short walls another, so only one of each is laid out.
-panel_sizes = [for (w = [0, 2]) if (len([for (p = panel_walls) if (wall_is_long(p) == wall_is_long(w)) 1]) > 0) w];
+// How far each panel is moved straight out from its wall in the "both"
+// layout. Only needs to beat the corner radius for the panels to come away
+// cleanly, but a wide gap makes them unambiguously separate bodies, which
+// is what lets a slicer split the STL into parts (STL carries no part
+// names, so separation is the only signal).
+panel_explode = 25;
+
+// Moves the children out along wall w's own outward direction: front -Y,
+// back +Y, left -X, right +X.
+module explode(w) {
+  translate([[0, -1, 0], [0, 1, 0], [-1, 0, 0], [1, 0, 0]][w] * panel_explode)
+    children();
+}
 
 if (part == "box" || !panel_enabled) {
   box();
 } else if (part == "panel") {
-  // Panels laid out in a row, flat on the plate.
-  for (i = [0 : len(panel_sizes) - 1])
-    translate([0, i * (panel_thickness + 6), 0]) sliding_panel(panel_sizes[i]);
+  // Panels only, spread apart so each is its own body.
+  for (w = panel_walls) explode(w) sliding_panel(w);
 } else {
   box();
-  // Laid out clear of the box, flat on the plate, ready to print together.
-  for (i = [0 : len(panel_sizes) - 1])
-    translate([0, -wall_outer[1] - 12 - i * (panel_thickness + 6), 0])
-      sliding_panel(panel_sizes[i]);
+  for (w = panel_walls) explode(w) sliding_panel(w);
 }

@@ -101,8 +101,13 @@ File: `breadboard_box.scad`
       the body count, not just the genus.
 - [x] `part` selects box / panel / both; `panel_enabled` reverts to a plain
       four-walled box
-- [x] Two panel sizes: 69.30 x 1.60 x 28.29 mm for the long walls, 27.40
+- [x] Two panel sizes: 69.30 x 1.60 x 27.99 mm for the long walls, 27.40
       wide for the short ends. Both engage 2.7 mm into each pillar.
+- [x] In the "both" layout each panel is translated 25 mm straight out from
+      its wall, so the five parts are disconnected bodies. STL carries no
+      part names, so physical separation is the only way a slicer can split
+      the file into objects; left in place the panels touch at the corners
+      and the whole thing imports as one body.
 - [x] Deck and hole grid untouched: the opening starts at the deck, so no
       holes are cut and the deck keeps its support
 
