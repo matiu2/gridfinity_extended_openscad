@@ -78,9 +78,18 @@ File: `breadboard_box.scad`
   nozzle, so expect them to print round and a little tight, which suits
   gripping legs; raise `hole_size` to 1.0-1.1 if they close up.
 
-## Stage 3 - sliding front panel  [DONE]
-- [x] Opening in one long wall, inset 6 mm from each cavity end, from the
-      deck up to the body top. Corner pillars 9.74 mm wide.
+## Stage 3 - sliding panels  [DONE]
+- [x] All four walls slide out. `panel_walls` selects which; [0] gives just
+      the front. Openings inset 6 mm from each cavity end.
+- [x] Openings run from the deck right to the top of the part, THROUGH the
+      stacking lip, so the rim does not bridge across and trap a panel.
+      Each panel carries its own section of rim.
+- [x] Two detents per groove: one near the bottom, one just under the rim.
+      The upper one holds the pillars together at the top, which the lip
+      would otherwise have done.
+- [x] Corner pillars 9.74 mm, keeping 6.74 mm of material between the two
+      grooves that meet at each corner. The deck slab ties all four
+      pillars together at the bottom.
 - [x] Groove in each pillar, 3 mm deep, for the panel edges
 - [x] Panel 1.6 mm thick in a 2.2 mm slot, 0.3 mm clearance per side. The
       slot is CENTRED in the 3.75 mm wall, leaving 0.775 mm of skin either
@@ -92,7 +101,8 @@ File: `breadboard_box.scad`
       the body count, not just the genus.
 - [x] `part` selects box / panel / both; `panel_enabled` reverts to a plain
       four-walled box
-- [x] Panel 69.30 x 1.60 x 24.55 mm, engaging 2.7 mm into each pillar
+- [x] Two panel sizes: 69.30 x 1.60 x 28.29 mm for the long walls, 27.40
+      wide for the short ends. Both engage 2.7 mm into each pillar.
 - [x] Deck and hole grid untouched: the opening starts at the deck, so no
       holes are cut and the deck keeps its support
 

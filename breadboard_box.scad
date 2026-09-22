@@ -55,6 +55,9 @@ layer_height = 0.2;
 /* [Sliding panel] */
 // Set false for a plain box with four solid walls.
 panel_enabled = true;
+// Which walls slide out: 0 front (-Y), 1 back (+Y), 2 left (-X), 3 right
+// (+X). All four by default; [0] gives just the front.
+panel_walls = [0, 1, 2, 3];
 // Which part to render. "box" and "panel" give one printable part each,
 // "both" lays them out side by side on the plate.
 part = "both"; // [box, panel, both]
@@ -207,75 +210,99 @@ module solid_cup() {
       subPitch = 2));
 }
 
-// --- Sliding panel -------------------------------------------------------
+// --- Sliding panels ------------------------------------------------------
 //
-// One long wall is replaced by a panel that slides straight up and out,
-// running in a groove cut into the corner pillars either side. The opening
-// starts at the deck, so the hole grid and its support are untouched.
+// Each of the four walls is replaced by a panel that slides straight up and
+// out, running in grooves cut into the corner pillars either side. The
+// openings start at the deck, so the hole grid and its support are
+// untouched, and run right to the top of the part so the stacking lip does
+// not bridge across and trap a panel. Each panel therefore carries its own
+// section of rim, and a detent just below the rim holds the pillars
+// together at the top the way the lip otherwise would.
 
-// The wall is 3.75 mm thick and the same all the way up, measured from a
-// cross-section, so the groove has room to sit inside it.
 body_top = height[0] * gf_zpitch;
-// The front wall runs from the outer face to the cavity. The slot sits
-// inside it, set in from the outer face so a skin of wall is left outboard
-// of the panel.
-wall_outer_y = -(depth[0] * gf_pitch - 0.5) / 2;
-wall_thickness = cavity_y[0] - wall_outer_y;
-// Centre the slot in the wall, so there is a similar skin of material on
-// each side of it rather than a sliver on one.
-wall_skin = (wall_thickness - (panel_thickness + 2 * panel_clearance)) / 2;
-// Near face of the slot, measured from the outside of the box inwards.
-panel_y = wall_outer_y + wall_skin;
-// The opening, inset from each end of the cavity.
-opening_x = [cavity_x[0] + panel_inset, cavity_x[1] - panel_inset];
-opening_width = opening_x[1] - opening_x[0];
-// Slot the panel runs in, and the panel that fits it.
+// Measured, not derived: the lip constants sum to 5.6 but the rendered lip
+// stands 3.74 mm above the body.
+lip_rise = 3.74;
+part_top = body_top + lip_rise;
+
+// Outer faces of the part, and the wall thickness, measured from a
+// cross-section. The wall is the same thickness all the way up.
+wall_outer = [(width[0] * gf_pitch - 0.5) / 2, (depth[0] * gf_pitch - 0.5) / 2];
+wall_thickness = wall_outer[1] - cavity_y[1];
+
+// Slot the panel runs in, centred in the wall so there is a similar skin of
+// material either side rather than a sliver on one.
 slot_width = panel_thickness + 2 * panel_clearance;
-panel_width = opening_width + 2 * groove_depth - 2 * panel_clearance;
-panel_height = body_top - deck_z;
+wall_skin = (wall_thickness - slot_width) / 2;
 
-// The void the panel occupies: the opening itself, widened into each pillar
-// by the groove. Cut from the box, this leaves the pillars grooved and the
-// wall between them gone.
-module panel_void() {
-  // Between the pillars the whole wall goes, from the outer face through to
-  // the cavity, leaving an open window.
-  translate([opening_x[0], wall_outer_y - 1, deck_z])
-    cube([opening_width, cavity_y[0] - wall_outer_y + 1, panel_height + 1]);
-  // The slot continues into each pillar, capturing the panel edges. It sits
-  // within the wall, leaving wall_skin outboard of it.
-  translate([opening_x[0] - groove_depth, panel_y, deck_z])
-    cube([opening_width + 2 * groove_depth, slot_width, panel_height + 1]);
+// Panel heights, and where the two detents sit: one near the bottom, one
+// just below the rim to capture the top.
+panel_height = part_top - deck_z;
+detent_heights = [detent_height, panel_height - detent_height];
+
+// For wall w (0 = front -Y, 1 = back +Y, 2 = left -X, 3 = right +X):
+// is it a long wall, which way does it face, and how wide is its opening?
+function wall_is_long(w) = w < 2;
+function wall_sign(w) = (w % 2) == 0 ? -1 : 1;
+// Along-wall extent of the cavity, and of the opening cut into it.
+function wall_span(w) = wall_is_long(w) ? cavity_x : cavity_y;
+function wall_opening(w) =
+  [wall_span(w)[0] + panel_inset, wall_span(w)[1] - panel_inset];
+function wall_width(w) = wall_opening(w)[1] - wall_opening(w)[0];
+function panel_width_of(w) =
+  wall_width(w) + 2 * groove_depth - 2 * panel_clearance;
+
+// Places the children in the frame of wall w: x runs along the wall, y runs
+// outward through its thickness from the slot's inner face.
+module in_wall(w) {
+  s = wall_sign(w);
+  // Long walls lie along X; short walls are the same thing rotated.
+  rotate([0, 0, wall_is_long(w) ? 0 : 90])
+    // Bring the outer face of this wall to the front, facing -Y.
+    scale([1, s * (wall_is_long(w) ? 1 : -1), 1])
+      translate([0, -wall_outer[wall_is_long(w) ? 1 : 0], 0])
+        children();
 }
 
-// A bump either side of the groove near the bottom, for the panel to click
-// past. Small enough that the panel flexes over it rather than jamming.
-// Bumps on the inner face of each groove, near the bottom, for the panel to
-// click past. Anchored in the pillar so they are part of the box, not
-// floating in the slot: the cylinder runs along Y and is sunk into the
-// groove's back wall, leaving only detent_size protruding into the slot.
-module panel_detents() {
-  // A half-round ridge lying along the outboard wall of each groove, where
-  // there is a skin of material to bury it in. The axis sits on that face,
-  // so half the cylinder is inside the wall and half stands proud into the
-  // slot for the panel to click over.
-  for (sx = [0, 1])
-    translate([opening_x[0] - groove_depth + sx * (opening_width + groove_depth),
-               panel_y,
-               deck_z + detent_height])
-      rotate([0, 90, 0])
-        cylinder(h = groove_depth, r = detent_size, $fn = 16);
+// The void one panel occupies: the window through the wall, plus the slot
+// running on into the pillar at each end.
+module panel_void_one(w) {
+  o = wall_opening(w);
+  in_wall(w) {
+    // The window: the whole wall thickness, between the pillars.
+    translate([o[0], -1, deck_z])
+      cube([wall_width(w), wall_thickness + 1, panel_height + 1]);
+    // The slot, continuing into each pillar.
+    translate([o[0] - groove_depth, wall_skin, deck_z])
+      cube([wall_width(w) + 2 * groove_depth, slot_width, panel_height + 1]);
+  }
 }
 
-module sliding_panel() {
+// Half-round ridges on the outboard wall of each groove, where there is a
+// skin of material to bury them in. The axis sits on that face, so half of
+// each cylinder is inside the wall and half stands proud into the slot.
+module panel_detents_one(w) {
+  o = wall_opening(w);
+  in_wall(w)
+    for (e = [0, 1], h = detent_heights)
+      translate([o[0] - groove_depth + e * (wall_width(w) + groove_depth),
+                 wall_skin, deck_z + h])
+        rotate([0, 90, 0])
+          cylinder(h = groove_depth, r = detent_size, $fn = 16);
+}
+
+module panel_voids() { for (w = panel_walls) panel_void_one(w); }
+module panel_detents() { for (w = panel_walls) panel_detents_one(w); }
+
+// One panel, lying flat: width along X, thickness in Y, height in Z. The
+// notches let it sit over the detents when fully home.
+module sliding_panel(w = 0) {
+  pw = panel_width_of(w);
   difference() {
-    translate([-panel_width / 2, 0, 0])
-      cube([panel_width, panel_thickness, panel_height]);
-    // Notches for the detents to sit in when the panel is fully down.
-    for (sx = [0, 1])
-      translate([-panel_width / 2 + sx * panel_width,
-                 panel_thickness / 2,
-                 detent_height])
+    translate([-pw / 2, 0, 0]) cube([pw, panel_thickness, panel_height]);
+    for (e = [0, 1], h = detent_heights)
+      translate([-pw / 2 + e * pw, panel_thickness / 2, h])
         rotate([0, 90, 0])
           cylinder(h = 4, r = detent_size, center = true, $fn = 16);
   }
@@ -313,7 +340,7 @@ module box() {
               subPitch = 2));
           raised_floor();
         }
-        if (panel_enabled) panel_void();
+        if (panel_enabled) panel_voids();
       }
       // Added back after the void, so they sit proud inside the groove.
       if (panel_enabled) panel_detents();
@@ -322,12 +349,20 @@ module box() {
   }
 }
 
+// The distinct panel sizes needed: the long walls share one size and the
+// short walls another, so only one of each is laid out.
+panel_sizes = [for (w = [0, 2]) if (len([for (p = panel_walls) if (wall_is_long(p) == wall_is_long(w)) 1]) > 0) w];
+
 if (part == "box" || !panel_enabled) {
   box();
 } else if (part == "panel") {
-  sliding_panel();
+  // Panels laid out in a row, flat on the plate.
+  for (i = [0 : len(panel_sizes) - 1])
+    translate([0, i * (panel_thickness + 6), 0]) sliding_panel(panel_sizes[i]);
 } else {
   box();
   // Laid out clear of the box, flat on the plate, ready to print together.
-  translate([0, -(depth[0] * gf_pitch) / 2 - 15, 0]) sliding_panel();
+  for (i = [0 : len(panel_sizes) - 1])
+    translate([0, -wall_outer[1] - 12 - i * (panel_thickness + 6), 0])
+      sliding_panel(panel_sizes[i]);
 }
