@@ -2,7 +2,7 @@
 //
 //   - 2 x 1 grid units (42 mm), giving 84 x 42 mm
 //   - base pads at half pitch (21 mm), so it sits on half-unit grid offsets
-//   - height 3 units of 7 mm = 21 mm
+//   - height 5 units of 7 mm = 35 mm, 38.74 mm including the stacking lip
 //   - no label holder, no magnet or screw holes in the feet
 //   - inner floor raised, then drilled on a 2.54 mm breadboard grid with a
 //     solid undrilled strip down the middle
@@ -25,7 +25,7 @@ width = [2, 0];
 // Y dimension, in grid units of 42 mm.
 depth = [1, 0];
 // Z dimension, in grid units of 7 mm.
-height = [3, 0];
+height = [5, 0];
 
 /* [Breadboard] */
 // How far to raise the inner floor above the stock cup floor.
