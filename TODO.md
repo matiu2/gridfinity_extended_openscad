@@ -189,6 +189,23 @@ File: `breadboard_box.scad`
       - If the panels bind, raise `panel_clearance`; printed fit is roughly
         that value plus 0.1.
 
+- [x] Detents turned OFF (`detent_size = 0`). PRINTED AND CONFIRMED: with
+      them in, the panel would not go into the groove at all. They were
+      sized when `panel_clearance` was 0.3 mm per side and the panel could
+      rattle; at 0.1 mm - nearer 0.2 printed, after the slicer's hole
+      compensation widens the slot - friction plus the pillars' 1 mm wrap
+      already hold the panel. The code is kept and guarded on
+      `detent_size > 0`, so setting it back to 0.4 restores them.
+      - The matching notches in the panel are guarded too, so the panel is a
+        plain flat sheet rather than carrying scallops for absent bumps.
+        Verified: below `body_top` the panel has exactly two Y faces,
+        1.60 mm apart. The stepped values above it are the rim's lip
+        profile and belong there.
+      - The "assembled" view now renders as FIVE bodies, not one. That is
+        correct: the detents were the only thing touching, and without them
+        the parts are genuinely separate. Panel still seats at the right
+        place - y -19.65..-18.05 inside a slot of -19.75..-17.95.
+
 ## Note on the "hollow corner" above z = 35
 Not a defect - it is the stacking lip's own recess, the same on a stock
 gridfinity cup. Measured side by side at x = -38.5: stock gives 2.80 / 2.01

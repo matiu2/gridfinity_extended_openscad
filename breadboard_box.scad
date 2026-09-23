@@ -93,7 +93,14 @@ panel_inset = 6;
 groove_depth = 3;
 // A bump partway up the groove that the panel clicks past, so it does not
 // slide out when the box is tipped or carried.
-detent_size = 0.4;
+//
+// OFF by default. Printed, these stopped the panel going in at all: they
+// were sized when the clearance was 0.3 mm per side and the panel could
+// rattle. At 0.1 mm modelled - nearer 0.2 printed, once the slicer's hole
+// compensation has widened the slot - friction against the slot and the
+// pillars' 1 mm wrap already hold the panel, so the bumps only got in the
+// way. Set to 0.4 to bring them back if a panel ever works loose.
+detent_size = 0;
 // Square pillars at each end of a panel, standing at the very edge of the
 // box. These are the corner, fattened: the groove is cut into them, so the
 // pillar wraps the panel on three sides rather than the wall holding it.
@@ -488,7 +495,9 @@ module panel_detents_one(w) {
 }
 
 module panel_voids() { for (w = panel_walls) panel_void_one(w); }
-module panel_detents() { for (w = panel_walls) panel_detents_one(w); }
+module panel_detents() {
+  if (detent_size > 0) for (w = panel_walls) panel_detents_one(w);
+}
 module panel_huggers() {
   if (hug_size > 0) for (w = panel_walls) panel_huggers_one(w);
 }
@@ -534,9 +543,12 @@ module panel_in_place(w) {
 // panel and the box never touch and stay separate bodies. In the printed
 // parts the detent still stands proud of the notch walls, and the panel
 // flexes over it on the way in.
+// With detent_size 0 there are no detents, so the panel stays a plain sheet
+// rather than carrying scallops for bumps that are not there.
 module panel_notched(w) {
   difference() {
     panel_in_place(w);
+    if (detent_size > 0)
     in_wall(w)
       for (e = [0, 1], h = detent_heights)
         translate([wall_opening(w)[0] - groove_depth
