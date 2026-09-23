@@ -6,6 +6,12 @@
 // filled solid wall-to-wall and barely flexes, which defeats the point.
 // Giving just that band one wall loop and no infill keeps it thin.
 //
+// The band covers only the drilled area. Two things are deliberately left
+// in the main part: the outer walls, which carry the box and must keep
+// their full wall count, and the undrilled centre strip, which is the
+// column holding up the deck above it and wants solid infill. The band is
+// therefore two blocks, one either side of the strip.
+//
 // The two parts TOUCH exactly - there is no gap - so loaded as parts of a
 // single object they fuse into one solid print. Loading them as separate
 // objects would not work: the slicer only keeps bodies apart when the mesh
@@ -29,12 +35,30 @@ piece = "band"; // [band, rest]
 band_z0 = 6.05;
 band_z1 = 9.45;
 
-// Comfortably larger than the part in X and Y.
-big = 200;
+// The band covers ONLY the drilled area, and nothing else.
+//
+// It stops short of the outer walls, which carry the whole box and must
+// keep their full wall count, and it excludes the undrilled centre strip,
+// which is the column supporting the deck above it and wants solid infill.
+// So the band is two blocks, one each side of the strip.
+//
+// Bounds are the outermost hole edges: X +/-37.28, Y 3.00 .. 14.06 either
+// side of centre. Trimmed in by a margin so the boundary lands in solid
+// material rather than clipping a hole wall.
+hole_edge_x = 37.28;
+hole_edge_y_outer = 14.06;
+hole_edge_y_inner = 3.00;
+// Keeps the cut off the hole walls themselves.
+band_margin = 0.3;
 
 module band_volume() {
-  translate([-big / 2, -big / 2, band_z0])
-    cube([big, big, band_z1 - band_z0]);
+  x0 = -hole_edge_x - band_margin;
+  w = 2 * (hole_edge_x + band_margin);
+  y_in = hole_edge_y_inner - band_margin;
+  y_out = hole_edge_y_outer + band_margin;
+  for (sy = [-1, 1])
+    translate([x0, sy < 0 ? -y_out : y_in, band_z0])
+      cube([w, y_out - y_in, band_z1 - band_z0]);
 }
 
 // The box is split by intersecting and differencing against the same
