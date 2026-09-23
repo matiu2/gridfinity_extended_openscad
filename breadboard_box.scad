@@ -63,16 +63,20 @@ hole_size_bottom = 0.6;
 // Solid skin at the top of the deck, before the taper and the hollowing
 // start. This is the surface you see from above.
 deck_skin = 1;
-// Below the skin the deck is hollowed out, leaving each hole surrounded by
-// walls of this thickness with a void between them. Thinner walls flex more
-// as a leg is pushed in, which is what gives the grip some give, and it
-// saves a lot of filament.
+// Below the skin the deck is cut into long parallel ribs by continuous
+// slots running the length of the box, one in each gap between rows of
+// holes. Each rib carries a whole row and is anchored only at its two ends,
+// so it bows along its full ~69 mm rather than being caged in a 2.54 mm
+// cell. Beam deflection goes as length cubed, so a rib is thousands of
+// times more compliant than a per-hole wall of the same thickness - the
+// difference between technically flexing and actually springing.
 //
-// 0.4 is one extrusion of a 0.4 mm nozzle and is the floor - thinner will
-// not print. It also has to fit: wall + hole + wall must be under the
-// 2.54 mm pitch with at least one extrusion of void left between
-// neighbouring holes, which caps it near 0.6. Set to 0 for a solid deck.
-hole_wall = 0.4;
+// This replaced a per-hole pocket scheme, which barely flexed because every
+// wall was welded to its neighbours at each crossing in both axes.
+//
+// 0.8 leaves 1.74 mm ribs with 0.42 mm of material either side of a hole,
+// about one extrusion. Set to 0 for a solid deck.
+rib_slot = 0.8;
 
 /* [Sliding panel] */
 // Set false for a plain box with four solid walls.
@@ -273,53 +277,41 @@ module hole_shafts(positions, bottom) {
   }
 }
 
-// The deck hollowed out below its skin, leaving each hole standing in a
-// wall of its own with a void between neighbours.
+// The deck cut into long parallel ribs by continuous slots.
 //
-// Two things this buys. The walls are thin enough to flex as a leg is
-// pushed in, so the grip has some give rather than being a hard wedge; and
-// most of the deck's volume disappears, which is a large filament saving on
-// a part that is otherwise a solid 5 mm slab.
+// One slot in each gap between rows of holes, running the whole length of
+// the cavity. What is left is a set of ribs, each carrying one row of
+// holes and anchored only at its two ends against the cavity walls.
 //
-// Built as the deck region minus a wall box around every hole, so what is
-// removed is exactly the material that is neither skin nor wall. The result
-// is clipped to the raised floor region so it cannot break out through the
-// sides or the underside.
+// This is the point of the shape: a rib bows over its full ~69 mm span
+// when a leg is pushed into one of its holes, where a per-hole wall is
+// welded to its neighbours at every crossing and is caged within 2.54 mm.
+// Deflection goes as the cube of the span, so the rib is thousands of
+// times more compliant for the same wall thickness.
+//
+// The slots stay buried under deck_skin, so from above the deck still
+// reads as a solid surface. The skin bridges each slot, which prints
+// cleanly at this width.
 module deck_hollow() {
-  if (hole_wall > 0) {
-    // A pocket in the middle of each cell of four holes, NOT a continuous
-    // void between wall boxes.
-    //
-    // Removing everything between the holes was the obvious reading of the
-    // idea and it does not work: the wall boxes cannot reach each other
-    // (they would have to be pitch-wide, i.e. the solid deck again), so
-    // each one ends up an island and the whole deck drops out as a separate
-    // body. Pockets leave a connected web of material between them, which
-    // both holds the grid together and ties it to the cup.
-    //
-    // The pocket is sized from hole_wall: it stops that far short of the
-    // neighbouring holes, so hole_wall still means "material beside a hole".
-    pocket = hole_pitch - hole_size - 2 * hole_wall;
-    // From under the skin down to a floor_skin above the stock floor, so
-    // the pockets stay enclosed top and bottom.
+  if (rib_slot > 0) {
     floor_skin = 0.6;
     z0 = floor_z + floor_skin;
     z1 = deck_z - deck_skin;
-    // Pocket centres sit between the holes, half a pitch off the grid.
-    xs = [for (i = [0 : len(hole_xs) - 2])
-            if (abs(hole_xs[i + 1] - hole_xs[i]) < hole_pitch * 1.5)
-              (hole_xs[i] + hole_xs[i + 1]) / 2];
+    // Slot centres sit in the gaps between adjacent hole rows. Consecutive
+    // rows one pitch apart get a slot between them; the pair either side of
+    // the undrilled centre strip are further apart and are skipped, so that
+    // strip stays solid.
     ys = [for (j = [0 : len(hole_ys) - 2])
             if (abs(hole_ys[j + 1] - hole_ys[j]) < hole_pitch * 1.5)
               (hole_ys[j] + hole_ys[j + 1]) / 2];
-    if (z1 > z0 && pocket > 0.4)
+    if (z1 > z0)
       intersection() {
         translate([0, 0, z0])
           linear_extrude(height = z1 - z0)
-            for (x = xs) for (y = ys)
-              translate([x, y]) square(pocket, center = true);
-        // Keep well inside the cavity so the pockets cannot break out
-        // through the walls or reach the panel slots.
+            for (y = ys)
+              translate([0, y]) square([inner_x + 10, rib_slot], center = true);
+        // Stop short of the cavity walls so the ribs stay anchored at both
+        // ends and the slots cannot reach the panel grooves.
         translate([cavity_x[0] + 2, cavity_y[0] + 2, 0])
           cube([inner_x - 4, inner_y - 4, deck_z + 1]);
       }

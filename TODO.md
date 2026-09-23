@@ -222,29 +222,32 @@ File: `breadboard_box.scad`
         scales about the ORIGIN, so extruding the whole grid with a scale
         flings the copies outwards. Wrapped in `render()` so the per-hole
         primitives do not overflow the preview renderer.
-- [x] Deck hollowed out below the skin (`hole_wall = 0.4`), as POCKETS in
-      the middle of each cell of four holes.
-      - The obvious reading - remove everything between the hole walls -
-        BREAKS THE PART. The wall boxes cannot reach each other (they would
-        have to be a full pitch wide, i.e. the solid deck again), so every
-        box becomes an island and the whole deck drops out as a separate
-        73.9 x 32.0 x 3.4 mm slab. Caught by the body count, not by looking.
-      - Pockets leave a connected web between them that holds the grid
-        together and ties it to the cup. 436 pockets at 0.84 mm plus 80 at
-        0.76 mm over the feet.
-      - The user's original 0.8 mm walls do NOT fit: 0.8 + 0.9 + 0.8 = 2.50
-        against a 2.54 pitch, leaving a 0.04 mm void the slicer would fill.
-        0.4 mm is the floor (one extrusion) and gives ~3.4x the compliance
-        of 0.6 mm.
-      - REQUIRES "Detect thin wall" ON in Bambu Studio. With it off and
-        2 wall loops, a 0.4 mm feature needs 0.8 mm to be drawn and the
-        slicer may drop it silently.
-      - Filament saving is only ~1.2 cm3, about 1.5 g - much less than the
-        idea suggests, because the walls have to stay thick enough to print.
-        The flex benefit is unproven: the walls are a welded grid, not free
-        columns, so a 2.54 mm span at 0.4 mm is still far stiffer than a
-        cantilever. If the printed grip is fine without it, `hole_wall = 0`
-        gives a solid deck back.
+- [x] Deck cut into long parallel RIBS by continuous slots (`rib_slot`),
+      one in each gap between hole rows, running the length of the box.
+      - This replaced a per-hole pocket scheme. The pockets barely flexed:
+        every wall was welded to its neighbours at each crossing in both
+        axes, so it was caged within one 2.54 mm cell. A rib is anchored
+        only at its two ends and bows over its full ~70 mm. Deflection goes
+        as span cubed, so the rib is ~20,000x more compliant for the same
+        wall thickness. The user proposed this; it is much better than what
+        I had built.
+      - 0.8 mm slots leave 1.74 mm ribs with 0.42 mm beside each hole.
+      - Slots stay buried under `deck_skin`, so from above the deck still
+        reads as a solid surface; the skin bridges each slot.
+      - Rows either side of the undrilled centre strip are more than a pitch
+        apart, so no slot is placed there and the strip stays solid -
+        verified as an 8.64 mm solid block in cross-section.
+      - Verified: 5 real parts, box one connected solid, ribs 1.74 mm at
+        z=7.7, holes still taper 0.9 -> 0.62.
+      - Saving is ~1.4 g. Modest; the flex is the point, not the filament.
+
+## An earlier attempt that broke the part
+Removing everything between per-hole walls - the obvious reading of
+"hollow it out" - makes every wall an island, because the walls cannot
+reach each other without being a full pitch wide (i.e. solid deck again).
+The whole deck then drops out as a loose 73.9 x 32.0 x 3.4 mm slab. It
+rendered without error and looked correct; only the body count caught it.
+Check `bodies=` after any change that removes interior material.
 
 ## Note on the "hollow corner" above z = 35
 Not a defect - it is the stacking lip's own recess, the same on a stock
