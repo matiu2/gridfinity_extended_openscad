@@ -44,13 +44,35 @@ hole_margin = 0.5;
 // breadboard at 6 mm, which is what components are built to sit in.
 centre_gap = 6;
 // Width of the chamfered mouth at the top of each hole, which guides a leg
-// in. 1.5 leaves 1.04 mm of deck between neighbouring mouths, and at 45
-// degrees makes the lead-in 0.3 mm deep.
-mouth_size = 1.5;
+// in. At 45 degrees the lead-in is half the difference from hole_size, so
+// 2.0 gives a 0.55 mm lead-in and leaves 0.54 mm of flat deck between
+// neighbouring mouths - just over one extrusion, so the deck still prints
+// as a surface. This is about the practical maximum: the mouths meet at
+// 2.54 and a 1 mm lead-in would need a 2.9 mm mouth, wider than the pitch.
+mouth_size = 2.0;
 lead_in = (mouth_size - hole_size) / 2;
 // Printer layer height. The chamfer is built as slices this thick, which is
 // how it comes out of the slicer regardless.
 layer_height = 0.2;
+
+/* [Hole grip] */
+// The holes taper inwards going down, so a leg pushed in wedges and is held
+// rather than falling out when the bin is tipped. Set equal to hole_size to
+// turn the taper off.
+hole_size_bottom = 0.6;
+// Solid skin at the top of the deck, before the taper and the hollowing
+// start. This is the surface you see from above.
+deck_skin = 1;
+// Below the skin the deck is hollowed out, leaving each hole surrounded by
+// walls of this thickness with a void between them. Thinner walls flex more
+// as a leg is pushed in, which is what gives the grip some give, and it
+// saves a lot of filament.
+//
+// 0.4 is one extrusion of a 0.4 mm nozzle and is the floor - thinner will
+// not print. It also has to fit: wall + hole + wall must be under the
+// 2.54 mm pitch with at least one extrusion of void left between
+// neighbouring holes, which caps it near 0.6. Set to 0 for a solid deck.
+hole_wall = 0.4;
 
 /* [Sliding panel] */
 // Set false for a plain box with four solid walls.
@@ -220,12 +242,88 @@ module hole_squares(positions) {
   for (p = positions) translate(p) square(hole_size, center = true);
 }
 
-// A set of holes as a single extrusion from its shared bottom to the deck.
+// A set of holes as extrusions from their shared bottom to the deck.
+//
+// The top deck_skin is a straight shaft at full hole_size - that is the
+// solid surface you see from above, and a leg enters it without resistance.
+// Everything below tapers down to hole_size_bottom, so the leg wedges as it
+// goes in and is held when the bin is tipped.
+//
+// The taper has to be built one hole at a time, because linear_extrude's
+// scale is about the ORIGIN, not about each shape in a 2D union - extruding
+// the whole grid with a scale flings the copies outwards. So each tapered
+// shaft is extruded at the origin and then translated into place. That is
+// one primitive per hole, which is what overflows the preview renderer, so
+// the result is wrapped in render() to collapse it to a single mesh.
 module hole_shafts(positions, bottom) {
-  if (len(positions) > 0)
-    translate([0, 0, bottom])
-      linear_extrude(height = deck_z - bottom + 0.01)
+  if (len(positions) > 0) {
+    // The straight part, still one extrusion for the whole set.
+    translate([0, 0, deck_z - deck_skin])
+      linear_extrude(height = deck_skin + 0.01)
         hole_squares(positions);
+    // The tapered part below it.
+    taper_h = deck_z - deck_skin - bottom;
+    if (taper_h > 0)
+      render()
+        for (p = positions)
+          translate([p[0], p[1], bottom])
+            linear_extrude(height = taper_h + 0.01,
+                           scale = hole_size / hole_size_bottom)
+              square(hole_size_bottom, center = true);
+  }
+}
+
+// The deck hollowed out below its skin, leaving each hole standing in a
+// wall of its own with a void between neighbours.
+//
+// Two things this buys. The walls are thin enough to flex as a leg is
+// pushed in, so the grip has some give rather than being a hard wedge; and
+// most of the deck's volume disappears, which is a large filament saving on
+// a part that is otherwise a solid 5 mm slab.
+//
+// Built as the deck region minus a wall box around every hole, so what is
+// removed is exactly the material that is neither skin nor wall. The result
+// is clipped to the raised floor region so it cannot break out through the
+// sides or the underside.
+module deck_hollow() {
+  if (hole_wall > 0) {
+    // A pocket in the middle of each cell of four holes, NOT a continuous
+    // void between wall boxes.
+    //
+    // Removing everything between the holes was the obvious reading of the
+    // idea and it does not work: the wall boxes cannot reach each other
+    // (they would have to be pitch-wide, i.e. the solid deck again), so
+    // each one ends up an island and the whole deck drops out as a separate
+    // body. Pockets leave a connected web of material between them, which
+    // both holds the grid together and ties it to the cup.
+    //
+    // The pocket is sized from hole_wall: it stops that far short of the
+    // neighbouring holes, so hole_wall still means "material beside a hole".
+    pocket = hole_pitch - hole_size - 2 * hole_wall;
+    // From under the skin down to a floor_skin above the stock floor, so
+    // the pockets stay enclosed top and bottom.
+    floor_skin = 0.6;
+    z0 = floor_z + floor_skin;
+    z1 = deck_z - deck_skin;
+    // Pocket centres sit between the holes, half a pitch off the grid.
+    xs = [for (i = [0 : len(hole_xs) - 2])
+            if (abs(hole_xs[i + 1] - hole_xs[i]) < hole_pitch * 1.5)
+              (hole_xs[i] + hole_xs[i + 1]) / 2];
+    ys = [for (j = [0 : len(hole_ys) - 2])
+            if (abs(hole_ys[j + 1] - hole_ys[j]) < hole_pitch * 1.5)
+              (hole_ys[j] + hole_ys[j + 1]) / 2];
+    if (z1 > z0 && pocket > 0.4)
+      intersection() {
+        translate([0, 0, z0])
+          linear_extrude(height = z1 - z0)
+            for (x = xs) for (y = ys)
+              translate([x, y]) square(pocket, center = true);
+        // Keep well inside the cavity so the pockets cannot break out
+        // through the walls or reach the panel slots.
+        translate([cavity_x[0] + 2, cavity_y[0] + 2, 0])
+          cube([inner_x - 4, inner_y - 4, deck_z + 1]);
+      }
+  }
 }
 
 // Every hole is given a flat bottom at one of two levels, rather than being
@@ -234,6 +332,7 @@ module hole_shafts(positions, bottom) {
 module breadboard_holes() {
   hole_shafts(deep_holes, base_clearance);
   hole_shafts(shallow_holes, foot_height + base_clearance);
+  deck_hollow();
   // The chamfered mouths, built as a stack of thin slices that step outward
   // towards the deck. A chamfer rather than a rounded fillet because the
   // sloped wall prints without overhang, where a true radius would need

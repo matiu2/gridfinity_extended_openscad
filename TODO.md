@@ -206,6 +206,46 @@ File: `breadboard_box.scad`
         the parts are genuinely separate. Panel still seats at the right
         place - y -19.65..-18.05 inside a slot of -19.75..-17.95.
 
+- [x] Bigger hole mouths: `mouth_size` 1.5 -> 2.0, so the lead-in goes from
+      0.30 to 0.55 mm. This is near the ceiling: at 45 degrees a 1 mm
+      lead-in would need a 2.9 mm mouth, wider than the 2.54 mm pitch, so
+      the mouths would merge and the deck between holes would vanish. 2.0
+      leaves 0.54 mm of flat deck, just over one extrusion.
+- [x] Holes taper 0.9 -> 0.6 mm so a leg wedges and is held. Verified
+      through the depth: 0.9 at the deck, then 0.88 / 0.81 / 0.74 / 0.67 /
+      0.62 going down. The top `deck_skin` (1 mm) stays a straight 0.9 mm
+      shaft so a leg enters without resistance.
+      - A HOLE is empty space, so the 0.4 mm nozzle does not limit it. The
+        limit is the SOLID between features, and narrowing the hole makes
+        that thicker, i.e. easier to print, not harder.
+      - The taper must be built one hole at a time: `linear_extrude(scale=)`
+        scales about the ORIGIN, so extruding the whole grid with a scale
+        flings the copies outwards. Wrapped in `render()` so the per-hole
+        primitives do not overflow the preview renderer.
+- [x] Deck hollowed out below the skin (`hole_wall = 0.4`), as POCKETS in
+      the middle of each cell of four holes.
+      - The obvious reading - remove everything between the hole walls -
+        BREAKS THE PART. The wall boxes cannot reach each other (they would
+        have to be a full pitch wide, i.e. the solid deck again), so every
+        box becomes an island and the whole deck drops out as a separate
+        73.9 x 32.0 x 3.4 mm slab. Caught by the body count, not by looking.
+      - Pockets leave a connected web between them that holds the grid
+        together and ties it to the cup. 436 pockets at 0.84 mm plus 80 at
+        0.76 mm over the feet.
+      - The user's original 0.8 mm walls do NOT fit: 0.8 + 0.9 + 0.8 = 2.50
+        against a 2.54 pitch, leaving a 0.04 mm void the slicer would fill.
+        0.4 mm is the floor (one extrusion) and gives ~3.4x the compliance
+        of 0.6 mm.
+      - REQUIRES "Detect thin wall" ON in Bambu Studio. With it off and
+        2 wall loops, a 0.4 mm feature needs 0.8 mm to be drawn and the
+        slicer may drop it silently.
+      - Filament saving is only ~1.2 cm3, about 1.5 g - much less than the
+        idea suggests, because the walls have to stay thick enough to print.
+        The flex benefit is unproven: the walls are a welded grid, not free
+        columns, so a 2.54 mm span at 0.4 mm is still far stiffer than a
+        cantilever. If the printed grip is fine without it, `hole_wall = 0`
+        gives a solid deck back.
+
 ## Note on the "hollow corner" above z = 35
 Not a defect - it is the stacking lip's own recess, the same on a stock
 gridfinity cup. Measured side by side at x = -38.5: stock gives 2.80 / 2.01
