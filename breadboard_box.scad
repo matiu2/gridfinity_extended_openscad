@@ -59,10 +59,19 @@ layer_height = 0.2;
 // The holes taper inwards going down, so a leg pushed in wedges and is held
 // rather than falling out when the bin is tipped. Set equal to hole_size to
 // turn the taper off.
+//
+// This is now the ONLY grip mechanism. An earlier version cut the deck into
+// long thin ribs meant to act as springs; printed, they gripped well but
+// the solid skin above them had nothing to anchor to and dropped loose
+// strands across the holes, which had to be picked out one at a time with a
+// needle. Not worth it - see rib_slot below.
 hole_size_bottom = 0.6;
-// Solid skin at the top of the deck, before the taper and the hollowing
-// start. This is the surface you see from above.
-deck_skin = 1;
+// Straight section at the top of each hole before the taper begins. Zero
+// means the hole narrows from the deck surface all the way down, which is
+// what you want with a solid deck: the leg meets a gently closing hole
+// rather than a step. It was 1 mm when the ribs existed, to keep the top of
+// the hole clear of them.
+deck_skin = 0;
 // Below the skin the deck is cut into long parallel ribs by continuous
 // slots running the length of the box, one in each gap between rows of
 // holes. Each rib carries a whole row and is anchored only at its two ends,
@@ -85,7 +94,13 @@ deck_skin = 1;
 // the cell budget is hole + wall + wall + slot, and at 0.8 slots the wall
 // dropped to 0.32 mm after compensation and the ribs broke into posts.
 // Set to 0 for a solid deck.
-rib_slot = 0.6;
+// OFF. The ribs worked mechanically - components gripped noticeably better
+// - but the solid deck skin above them had nothing to anchor to and printed
+// loose strands criss-crossing the holes, first in the corners and then in
+// the middle. Clearing them needed a needle in every hole, which is more
+// work than the grip was worth. 15% infill in the band reduced it but did
+// not fix it. Set to 0.6 to bring them back.
+rib_slot = 0;
 
 /* [Sliding panel] */
 // Set false for a plain box with four solid walls.
@@ -270,10 +285,13 @@ module hole_squares(positions) {
 // the result is wrapped in render() to collapse it to a single mesh.
 module hole_shafts(positions, bottom) {
   if (len(positions) > 0) {
-    // The straight part, still one extrusion for the whole set.
-    translate([0, 0, deck_z - deck_skin])
-      linear_extrude(height = deck_skin + 0.01)
-        hole_squares(positions);
+    // The straight part, still one extrusion for the whole set. Skipped
+    // when deck_skin is 0, where it would be a degenerate sliver and the
+    // taper runs from the deck surface instead.
+    if (deck_skin > 0)
+      translate([0, 0, deck_z - deck_skin])
+        linear_extrude(height = deck_skin + 0.01)
+          hole_squares(positions);
     // The tapered part below it.
     taper_h = deck_z - deck_skin - bottom;
     if (taper_h > 0)
