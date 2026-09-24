@@ -74,9 +74,18 @@ deck_skin = 1;
 // This replaced a per-hole pocket scheme, which barely flexed because every
 // wall was welded to its neighbours at each crossing in both axes.
 //
-// 0.8 leaves 1.74 mm ribs with 0.42 mm of material either side of a hole,
-// about one extrusion. Set to 0 for a solid deck.
-rib_slot = 0.8;
+// 0.6 leaves 1.94 mm ribs with 0.52 mm of material either side of a hole.
+// That 0.52 is sized to survive the slicer's xy_hole_compensation, which
+// this model NEEDS: without it a 0.9 mm hole gets a full perimeter bead
+// round it and prints with only ~0.06 mm of opening, far too small for a
+// component leg. Compensation of 0.2 takes 0.1 mm from each side, leaving
+// 0.42 mm - one extrusion, still printable.
+//
+// This is the binding constraint in the whole design. On a 2.54 mm pitch
+// the cell budget is hole + wall + wall + slot, and at 0.8 slots the wall
+// dropped to 0.32 mm after compensation and the ribs broke into posts.
+// Set to 0 for a solid deck.
+rib_slot = 0.6;
 
 /* [Sliding panel] */
 // Set false for a plain box with four solid walls.
